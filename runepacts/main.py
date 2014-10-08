@@ -913,7 +913,7 @@ def main():
 		sig_genes_bed = aopts['OUTPREFIX'] + '.variants_from_sig_genes.txt'
 		marker_names.to_csv(sig_genes_bed,sep="\t",index=False,index_label=False)
 
-		# VCF filename for variants within significant genes only
+		# Create a VCF file with only the variants from within significant genes
 		sig_genes_vcf = aopts['OUTPREFIX'] + '.variants_from_sig_genes.recode.vcf'
 
 		try:
@@ -927,29 +927,15 @@ def main():
 			orig_header = orig_header.replace("#","")
 			print >> out, orig_header
 
-		# TODO: fix this, SEPCHR is off now, but we're still using orig_vcf_path, which might be SEPCHR
-		# can we switch this to gene_vcf?
 		# Extract variants within significant genes only and write them to a VCF
-		if not aopts["SEPCHR"]:
-			tabix_cmd = "tabix -B {vcf} {bed} >> {outvcf}".format(
-				vcf = orig_vcf_path,
-				bed = sig_genes_bed,
-				outvcf = sig_genes_vcf
-			)
+		tabix_cmd = "tabix -B {vcf} {bed} >> {outvcf}".format(
+			vcf = orig_vcf_path,
+			bed = sig_genes_bed,
+			outvcf = vcf_for_tests
+		)
 
-			logger.debug(tabix_cmd)
-			run_bash(tabix_cmd)
-
-		else:
-			for vcf in match_sepchr_vcfs(orig_vcf_path):
-				tabix_cmd = "tabix -B {vcf} {bed} >> {outvcf}".format(
-					vcf = vcf,
-					bed = sig_genes_bed,
-					outvcf = sig_genes_vcf
-				)
-
-				logger.debug(tabix_cmd)
-				run_bash(tabix_cmd)
+		logger.debug(tabix_cmd)
+		run_bash(tabix_cmd)
 
 		df_sig_gene_vars = pandas.read_table(sig_genes_vcf,sep="\t")
 
