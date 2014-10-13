@@ -920,13 +920,8 @@ def main():
 		except:
 			pass
 
-		# Write VCF header
-		with open(sig_genes_vcf,"w") as out:
-			orig_header = "\t".join(get_vcf_header(orig_vcf_path))
-			print >> out, orig_header
-
 		# Extract variants within significant genes only and write them to a VCF
-		tabix_cmd = "tabix -B {vcf} {bed} >> {outvcf}".format(
+		tabix_cmd = "tabix -B -h {vcf} {bed} >> {outvcf}".format(
 			vcf = vcf_for_tests,
 			bed = sig_genes_bed,
 			outvcf = sig_genes_vcf
@@ -935,7 +930,7 @@ def main():
 		logger.debug(tabix_cmd)
 		run_bash(tabix_cmd)
 
-		df_sig_gene_vars = pandas.read_table(sig_genes_vcf,sep="\t")
+		df_sig_gene_vars = vcf_pandas_load(sig_genes_vcf)
 		df_sig_gene_vars.rename(columns = {"#CHROM" : "CHROM"},inplace=True)
 
 		# Remove samples that were filtered out in the PED file

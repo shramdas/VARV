@@ -125,7 +125,7 @@ def groupfile_get_genes(filepath):
 
 	return genes
 
-def get_vcf_header(vcf):
+def vcf_get_header(vcf):
 	if vcf.endswith(".gz"):
 		f = gzip.open(vcf);
 	else:
@@ -140,6 +140,26 @@ def get_vcf_header(vcf):
 				
 	return header;
 
+def vcf_nskip(filepath):
+	f = gzip.open(filepath) if filepath.endswith(".gz") else open(filepath);
+
+	with f:
+		i = 0
+		for line in f:
+			if line.startswith("##"):
+				i += 1
+			else:
+				break
+
+	return i;
+
+def vcf_pandas_load(vcf,*args,**kwargs):
+	skip = vcf_nskip(vcf);
+	comp = "gzip" if vcf.endswith(".gz") else None;
+	df = pandas.read_table(vcf,sep="\t",compression=comp,skiprows=skip,*args,**kwargs);
+
+	return df;
+
 def sets_overlap(s1,s2):
 	"""
 	Quick function to check if any elements of two sets overlap.
@@ -151,7 +171,7 @@ def sets_overlap(s1,s2):
 	return len(set(s1).intersection(s2)) > 0
 
 def calculate_maf(inputvcf,outprefix,samplestokeep,sepchr=False):
-	header = get_vcf_header(inputvcf);
+	header = vcf_get_header(inputvcf);
 
 	colstokeep = []
 	samplestokeeplist = list(samplestokeep)
@@ -362,7 +382,7 @@ def create_group_file(outfile,df_anno,gene_col,logger=None):
 		logger.debug("called create_group_file: \n" + pprint.pformat(locals()))
 
 	# Write out group file
- 	with open(outfile,"w") as out:
+	with open(outfile,"w") as out:
 		for gene, group in df_anno.groupby(gene_col):
 			variants = group["EPACTS"].unique()
 
