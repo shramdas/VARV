@@ -899,19 +899,18 @@ def main():
 			logger.warning("EPACTS groupwise test returned no significant results.")
 			continue
 		
-		marker_names = pandas.DataFrame(marker_names)
-		marker_names[marker_names.columns[0]] = marker_names[marker_names.columns[0]].str.replace("_",":")
-		marker_names = pandas.DataFrame(marker_names[marker_names.columns[0]].str.split(":").tolist())
-		marker_names[marker_names.columns[1]] = marker_names[marker_names.columns[1]].astype(int)
-		
-		del marker_names[marker_names.columns[2]]
-		
-		marker_names['END'] = marker_names[marker_names.columns[1]].astype(int) + numpy.repeat(1,len(marker_names))
-		marker_names[marker_names.columns[1]] = marker_names[marker_names.columns[1]].astype(int) - numpy.repeat(1,len(marker_names))
-		marker_names = marker_names.sort(columns=[marker_names.columns[0], marker_names.columns[1]])
+		marker_names = pandas.DataFrame({ "MARKER_ID" : marker_names })
+
+		marker_names["CHROM"] = marker_names.iloc[:,0].map(lambda x: x.split(":")[0])
+		marker_names["POS"] = marker_names.iloc[:,0].map(lambda x: x.split("_")[0].split(":")[1]).astype("int")
+		marker_names["START"] = marker_names["POS"] - 1
+		marker_names["END"] = marker_names["POS"] + 1
+		marker_names.sort(["CHROM","POS"],inplace=True)
 
 		sig_genes_bed = aopts['OUTPREFIX'] + '.variants_from_sig_genes.txt'
-		marker_names.to_csv(sig_genes_bed,sep="\t",index=False,index_label=False)
+
+		marker_names_bed = marker_names["CHROM START END".split()]
+		marker_names_bed.to_csv(sig_genes_bed,sep="\t",index=False,index_label=False,header=False)
 
 		# Create a VCF file with only the variants from within significant genes
 		sig_genes_vcf = aopts['OUTPREFIX'] + '.variants_from_sig_genes.recode.vcf'
@@ -924,20 +923,20 @@ def main():
 		# Write VCF header
 		with open(sig_genes_vcf,"w") as out:
 			orig_header = "\t".join(get_vcf_header(orig_vcf_path))
-			orig_header = orig_header.replace("#","")
 			print >> out, orig_header
 
 		# Extract variants within significant genes only and write them to a VCF
 		tabix_cmd = "tabix -B {vcf} {bed} >> {outvcf}".format(
-			vcf = orig_vcf_path,
+			vcf = vcf_for_tests,
 			bed = sig_genes_bed,
-			outvcf = vcf_for_tests
+			outvcf = sig_genes_vcf
 		)
 
 		logger.debug(tabix_cmd)
 		run_bash(tabix_cmd)
 
 		df_sig_gene_vars = pandas.read_table(sig_genes_vcf,sep="\t")
+		df_sig_gene_vars.rename(columns = {"#CHROM" : "CHROM"},inplace=True)
 
 		# Remove samples that were filtered out in the PED file
 		drop_samples = set(df_sig_gene_vars.columns[9:]).difference(keep_samples)
