@@ -93,47 +93,74 @@ def get_defaults():
 
 	return defaults
 
-def run_plots(options,phenotype,covariates,tests,pvalt):
+# def run_plots(options,phenotype,covariates,tests,pvalt):
+# 	log_key = gen_analysis_key(options)
+# 	info = logging.getLogger(log_key).info
+# 	warn = logging.getLogger(log_key).warning
+# 	debug = logging.getLogger(log_key).debug
+#
+# 	# These files must have been previously created by the pipeline.
+# 	required_for_plot = map(lambda x: options["OUTPREFIX"] + x,[".allvariants.txt",".pheno.ped",".summary.txt",".genes_passing_filters.txt"]);
+#
+# 	if all(map(os.path.isfile,required_for_plot)):
+# 		plot_loc = os.path.join(runepacts.__path__[0],"R/plots.R");
+# 		if len(covariates) > 0:
+# 			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} {covars} < {script}";
+# 			run_cmd = cmd.format(
+# 				out_prefix = options["OUTPREFIX"],
+# 				phenotype = phenotype,
+# 				tests = tests,
+# 				pval_thresh = str(pvalt),
+# 				covars = options['MODEL'].split('~')[1],
+# 				script = plot_loc
+# 			)
+#
+# 			run_bash(run_cmd)
+#
+# 		else:
+# 			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} NA < {script}"
+# 			run_cmd = cmd.format(
+# 				out_prefix = options["OUTPREFIX"],
+# 				phenotype = phenotype,
+# 				tests = tests,
+# 				pval_thresh = str(pvalt),
+# 				script = plot_loc
+# 			)
+#
+# 			run_bash(run_cmd)
+#
+# 		if _RUNEPACTS_DEBUG:
+# 			debug(run_cmd)
+#
+# 		info("Output written to: " + options['OUTPREFIX'] + '.topgenes.pdf')
+#
+# 	else:
+# 		warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
+
+def run_plots(options,out_prefix,plot_prefix,phenotype):
 	log_key = gen_analysis_key(options)
 	info = logging.getLogger(log_key).info
 	warn = logging.getLogger(log_key).warning
 	debug = logging.getLogger(log_key).debug
 
 	# These files must have been previously created by the pipeline.
-	required_for_plot = map(lambda x: options["OUTPREFIX"] + x,[".allvariants.txt",".pheno.ped",".summary.txt",".genes_passing_filters.txt"]);
+	required_for_plot = map(lambda x: out_prefix + x,[".single_variant_combined.txt"]);
 
 	if all(map(os.path.isfile,required_for_plot)):
 		plot_loc = os.path.join(runepacts.__path__[0],"R/plots.R");
-		if len(covariates) > 0:
-			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} {covars} < {script}";
-			run_cmd = cmd.format(
-				out_prefix = options["OUTPREFIX"],
-				phenotype = phenotype,
-				tests = tests,
-				pval_thresh = str(pvalt),
-				covars = options['MODEL'].split('~')[1],
-				script = plot_loc
-			)
 
-			run_bash(run_cmd)
+		cmd = "R --vanilla --slave --args {phenotype} {out_prefix} {plot_prefix} < {script}";
+		run_cmd = cmd.format(
+			out_prefix = out_prefix,
+			plot_prefix = plot_prefix,
+			phenotype = phenotype,
+			script = plot_loc
+		)
 
-		else:
-			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} NA < {script}"
-			run_cmd = cmd.format(
-				out_prefix = options["OUTPREFIX"],
-				phenotype = phenotype,
-				tests = tests,
-				pval_thresh = str(pvalt),
-				script = plot_loc
-			)
+		run_bash(run_cmd)
 
-			run_bash(run_cmd)
-
-		if _RUNEPACTS_DEBUG:
-			debug(run_cmd)
-
-		info("Output written to: " + options['OUTPREFIX'] + '.topgenes.pdf')
-
+	if _RUNEPACTS_DEBUG:
+		debug(run_cmd)
 	else:
 		warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
 
@@ -768,8 +795,9 @@ def main():
 		# Read in single marker results
 		single_marker_results = pandas.read_table(aopts['OUTPREFIX'] + '.singlemarker.epacts.gz',compression="gzip")
 		single_marker_results["MARKER_ID"] = single_marker_results["MARKER_ID"].map(epacts_no_extra)
-		single_marker_results = single_marker_results["MARKER_ID PVALUE BETA NS MAF".split()]
-		single_marker_results['MAC'] = single_marker_results['NS'] * 2 * single_marker_results['MAF']
+		single_marker_results = single_marker_results["MARKER_ID PVALUE BETA NS AC MAF".split()]
+#		single_marker_results['MAC'] = single_marker_results['NS'] * 2 * single_marker_results['MAF']
+		single_marker_results["MAC"] = single_marker_results.apply(lambda x: min(2 * x["NS"] - x["AC"],x["AC"]),axis=1)
 		single_marker_results.index = single_marker_results["MARKER_ID"]
 		
 		# Get variants that pass the MAF/MAC filter
@@ -818,6 +846,9 @@ def main():
 				for ind in range(0,len(lsplit)):
 					if lsplit[ind] in pass_snps:
 						marker_names.append(originaltemp[ind])
+			else:
+				#logger.debug("gene %s failed filters - GENEMINMAC: %f | MINVARS: %i" % (genename,mac,numvars))
+				pass
 			
 			if passed:
 				newgroupfile.write(towrite + "\n")
@@ -871,8 +902,9 @@ def main():
 
 		# Read in group test results
 		all_grp_test_results = None
-		for grp_test in tests:
-			grp_results = pandas.read_table(aopts['OUTPREFIX'] + '.' + grp_test.split('=')[1] + '.epacts',sep="\t",header=0)	# reading in output file for test
+		for grp_i, grp_test in enumerate(tests):
+			grp_test_name = grp_test.split("=")[1]
+			grp_results = pandas.read_table(aopts['OUTPREFIX'] + '.' + grp_test_name + '.epacts',sep="\t",header=0)	# reading in output file for test
 
 			if 'NUM_PASS_VARS' in grp_results.columns:
 				grp_results.rename(columns={'NUM_PASS_VARS':'PASS_MARKERS'}, inplace=True)
@@ -882,7 +914,13 @@ def main():
 			
 			grp_results = grp_results.sort(['#CHROM','BEGIN'])
 
-			if grp_test == tests[0]:
+			# The name of the gene-based test
+			grp_results["TEST"] = grp_test_name
+
+			# Extract the name of the gene from the EPACTS MARKER_ID column
+			grp_results["GENE"] = grp_results.MARKER_ID.map(lambda x: x.split("_")[-1])
+
+			if grp_i == 0:
 				all_grp_test_results = grp_results
 			else:
 				all_grp_test_results = all_grp_test_results.append(grp_results)
@@ -892,6 +930,8 @@ def main():
 		# in the form of chr:start-end_gene
 		all_grp_test_results = all_grp_test_results.sort(["#CHROM",'BEGIN'],inplace=False)
 		all_grp_test_results = all_grp_test_results[all_grp_test_results.PVALUE <= float(aopts['PVALUETHRESHOLD'])]
+
+		# List of genes that were significant
 		genes = all_grp_test_results['MARKER_ID'].drop_duplicates()
 
 		# if output is empty, then ??
@@ -952,34 +992,48 @@ def main():
 		vcf_sig_gene_melted.GENOTYPE = vcf_sig_gene_melted.GENOTYPE.str.replace(':.*','')							  # Drop remaining fields after GT
 		vcf_sig_gene_melted = vcf_sig_gene_melted[~ vcf_sig_gene_melted.GENOTYPE.str.contains("\.")]		# Drop missing genos
 
-		# This part just collects per gene the single variant results along with their genotypes per individual into
-		# one large melted data frame.
-		allvariants = None
+		# This part just collects per gene the single variant results along with the gene level test results into
+		# one final data frame.
+
+		pivot_grp_results = all_grp_test_results["MARKER_ID TEST PVALUE".split()].pivot("MARKER_ID","TEST","PVALUE")
+		pivot_grp_results.rename(columns = dict(zip(pivot_grp_results.columns,map(lambda x: x + ".P",pivot_grp_results.columns))),inplace=True)
+
+		all_gene_sv_results = []
 		for gene in genes:
 			genename = gene.split('_')[1]
-			
-			if genename not in genes_passing_filters:
-				continue
 
 			# Pull out single variant results for this specific gene's variants
 			gene_variants = marker_list_for_genes[genename]
 			gene_sv_results = single_marker_results[single_marker_results.MARKER_ID.isin(gene_variants)]
 
-			# Merge them together.
-			gene_allvar = pandas.merge(gene_sv_results,vcf_sig_gene_melted,on="MARKER_ID",how="left")
+			# Add in the group
+			gene_sv_results["GROUP"] = gene
 
-			# Include the group/gene
-			gene_allvar["GROUP"] = gene
+			# Was this gene filtered out? Only filtered genes actually made it to analysis.
+			gene_sv_results["GENE_FILTERED"] = int(genename not in genes_passing_filters)
 
-			# Re-arrange columns
-			gene_allvar = gene_allvar.reindex(columns = "GROUP MARKER_ID PVALUE GENOTYPE IND BETA MAF MAC".split())
+			# Change a few column names
+			gene_sv_results.rename(columns = {
+				"PVALUE" : "SV.P",
+				"MARKER_ID" : "VARIANT"
+			},inplace=True)
 
-			if allvariants is None:
-				allvariants = gene_allvar
-			else:
-				allvariants = pandas.concat([allvariants,gene_allvar])
+			# Drop a few unneeded columns
+			del gene_sv_results["AC"]
+			del gene_sv_results["NS"]
 
-		# Load annotation file.
+			all_gene_sv_results.append(gene_sv_results)
+
+		all_gene_sv_results = pandas.concat(all_gene_sv_results)
+		gene_final = pandas.merge(pivot_grp_results,all_gene_sv_results,left_index=True,right_on="GROUP")
+		gene_final.insert(0,"GENE",gene_final.GROUP.map(lambda x: x.split("_")[1]))
+		try:
+			gene_final["MAC"] = gene_final["MAC"].astype("int")
+		except:
+			pass
+		del gene_final["GROUP"]
+
+		# Merge annotations in with single variant results.
 		# In this case, we have to load the entire annotation file, because the user may have specified a group file.
 		# If they did, and they accidentally specified an annotation filter, the annotation results would then be filtered,
 		# and cause some of the variants in the group file to be missing annotations.
@@ -1002,12 +1056,40 @@ def main():
 			keep_cols = ["EPACTS"] + annot_extra_cols
 			annofile = annofile[keep_cols]
 
-			merged = pandas.merge(allvariants,annofile,left_on='MARKER_ID',right_on='EPACTS',how="left")
-			del merged['EPACTS']
+			gene_final = pandas.merge(gene_final,annofile,left_on='VARIANT',right_on='EPACTS',how="left")
+			del gene_final['EPACTS']
 
-			allvariants = merged
+		# Where should we write the top genes plot?
+		html_dir = os.path.join(aopts["OUTPREFIX"] + ".plots/")
+		mkpath(html_dir)
 
-		allvariants.to_csv(aopts['OUTPREFIX'] + ".allvariants.txt",sep="\t",index=False,index_label=False)
+		# Write the supporting files (HTML and JS) for the plot.
+		copy_html_template(html_dir)
+
+		# Write out phenotype data for plotting.
+		for_plot_pheno = pedfile[[phenotype,"IND_ID"]]
+		for_plot_pheno.columns = "TRAIT IND".split()
+		df_to_js(for_plot_pheno,"phenos",os.path.join(html_dir,"plot_phenos.js"),float_format="%0.3g",write_tab=True)
+
+		# Write out single variant and gene test results for plotting.
+		# We only want those single variant results for genes passing filters, though.
+		gene_final_filtered = gene_final[gene_final["GENE_FILTERED"] != 1]
+		del gene_final_filtered["GENE_FILTERED"]
+		df_to_js(gene_final_filtered,"genes",os.path.join(html_dir,"plot_genes.js"),float_format="%0.3g",write_tab=True)
+
+		# Write out single variant results for creating QQ plots and manhattan plots.
+		for_qq_manhattan = gene_final["GENE GENE_FILTERED VARIANT SV.P".split()]
+		for_qq_manhattan["CHROM"] = for_qq_manhattan.VARIANT.map(lambda x: parse_epacts(x)[0])
+		for_qq_manhattan["POS"] = for_qq_manhattan.VARIANT.map(lambda x: parse_epacts(x)[1])
+		for_qq_manhattan.to_csv(os.path.join(aopts["OUTPREFIX"] + ".single_variant_combined.txt"),sep="\t",index=False,na_rep="NA")
+
+		# Write out variant data for plotting.
+		for_plot_variants = add_rare_count(vcf_sig_gene_melted,filter=0)
+		for_plot_variants.rename(columns = {
+			"MARKER_ID" : "VARIANT"
+		},inplace=True)
+		for_plot_variants = pandas.merge(for_plot_variants,for_plot_pheno,on="IND",how="left")
+		df_to_js(for_plot_variants,"variants",os.path.join(html_dir,"plot_variants.js"),float_format="%0.3g",write_tab=True)
 
 		# Write out a summary of options given.
 		with open(aopts['OUTPREFIX'] + ".summary.txt","w") as summary_file:
@@ -1022,8 +1104,7 @@ def main():
 				print >> summary_file, "%s\t%s" % (k,v)
 
 		# Create PDFs of plots.
-		logger.info("Creating output plots for each significant gene...")
-		run_plots(aopts,phenotype,covariates,tests_to_write,aopts["PVALUETHRESHOLD"])
+		run_plots(aopts,aopts["OUTPREFIX"],html_dir,phenotype)
 
 if __name__ == "__main__":
 	main()

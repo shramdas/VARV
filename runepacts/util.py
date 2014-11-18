@@ -1,9 +1,89 @@
 #!/usr/bin/env python
-import sys, os, subprocess, gzip, signal, pprint, re
+import sys, os, subprocess, gzip, signal, pprint, re, base64, shutil
 import numpy as np
 import pandas
 import pandas.computation
+import runepacts
 from collections import Counter
+
+def copy_html_template(out_dir):
+	"""
+	Copies HTML and supporting javascript files to an output directory. These files currently contain the plotting
+	code for the new top genes graphic.
+
+	:param out_dir: Directory to write files to.
+	:return: None
+	"""
+
+	data_dir = os.path.join(runepacts.__path__[0],"data/")
+
+	# Copy the required javascript files to the outpath.
+	files = os.listdir(data_dir)
+	for f in files:
+		shutil.copy2(os.path.join(data_dir,f),os.path.join(out_dir,f))
+
+def add_rare_count(dframe,marker_col="MARKER_ID",geno_col="GENOTYPE",count_col="RARE_COUNT",filter=None):
+	"""
+	Adds a rare count column denoting the number of rare alleles. This function assumes the data frame being passed in
+	is in long format, namely that there is a row per individual per genotype.
+
+	:param dframe: Dataframe of genotypes, one row per individual per genotype
+	:param marker_col: Name of marker ID column
+	:param geno_col: Name of genotype column
+	:param count_col: Name for the created rare count column within the data frame
+	:param filter: Remove variants with this rare_count or fewer (so if filter = 1, then rare_count <= 1 are dropped)
+	:return: The data frame with a new rare count column named by count_col
+	"""
+
+	results = []
+	for index, df in dframe.groupby(marker_col):
+		# Find the rarest allele
+		rare_al, rare_total_count = Counter("".join(df[geno_col]).replace("/","")).most_common()[-1]
+
+		# Add in a column counting the number of rare alleles per person.
+		df[count_col] = df[geno_col].str.count(rare_al)
+
+		results.append(df)
+
+	last = pandas.concat(results)
+	if filter is not None:
+		last = last[last[count_col] > filter]
+
+	return last
+
+def df_to_js(dframe,fname,js_out,write_tab=True,float_format=None):
+	"""
+	Creates a javascript file with a function that returns this data frame as a base64 encoded string.
+	This helps get around a browser limitation in Chrome that will not allow reading data from local files.
+	Instead, we just include these javascript files with the data embedded.
+
+	:param dframe: Pandas data frame
+	:param fname: Name of the javascript function that will return the data
+	:param js_out: Name of the javascript file to write
+	:param write_tab: If enabled, also write the tab-delimited tsv file next to the js file.
+	"""
+
+	data = dframe.to_csv(sep="\t",index=False,na_rep="NA")
+
+	template = """
+
+	function load_%s() {
+		return atob("%s")
+	}
+
+	""" % (fname,base64.encodestring(data).replace("\n",""))
+
+	with open(js_out,"w") as out:
+		print >> out, template
+
+	if write_tab:
+		dframe.to_csv(
+			js_out.replace(".js",".tsv"),
+			sep="\t",
+			index=False,
+		  float_format=float_format,
+			na_rep="NA"
+		)
 
 def match_sepchr_vcfs(vcf_prefix):
 	"""

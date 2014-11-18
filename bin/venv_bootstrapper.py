@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+#===============================================================================
 # Copyright (C) 2014 Shweta Ramdas, Ryan Welch, The University of Michigan
 #
 # runepacts is free software: you can redistribute it and/or modify
@@ -14,28 +15,23 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#===============================================================================
 
-import sys, os
-import os.path as path
+import virtualenv, textwrap
 
-# Path to this script
-this_dir = path.dirname(path.realpath(sys.argv[0]))
+output = virtualenv.create_bootstrap_script(textwrap.dedent("""
+import os, subprocess, shlex
+def after_install(options, home_dir):
+    etc = join(home_dir, 'etc')
+    if not os.path.exists(etc):
+        os.makedirs(etc)
+    
+    pip = join(home_dir,'bin','pip')
+    
+    cmd = "%s install -I pandas" % pip
+    subprocess.call(shlex.split(cmd))
 
-# Push runepacts source onto the path
-runepacts_dir = path.join(this_dir,"..")
-sys.path.insert(0,runepacts_dir);
+"""))
 
-# Check that the virtualenv exists
-env_dir = path.join(this_dir,"../env")
-activate_this = path.join(env_dir,'bin/activate_this.py')
-
-if not os.path.isfile(activate_this):
-  sys.exit("Error: no virtualenv found, did you run the bin/setup.py script?")
-
-# Push the virtualenv onto the path
-execfile(activate_this, dict(__file__=activate_this))
-
-from runepacts.main import main
-
-main();
+f = open('virtualenv-runepacts.py', 'w').write(output)
 
