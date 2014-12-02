@@ -22,6 +22,47 @@ def copy_html_template(out_dir):
 	for f in files:
 		shutil.copy2(os.path.join(data_dir,f),os.path.join(out_dir,f))
 
+def recode_genotypes_additive(genotypes):
+	"""
+	Recode genotypes to be additive, counting towards
+	the minor allele.
+
+	Genotypes are assumed to be in the format:
+	00, 01, 10, 11
+
+	Genotypes will be recoded 0, 1, 2
+	With 0 - common homozygote
+			 1 - heterozygote
+			 2 - rare homozygote
+
+	Returns:
+	return[0] - recoded genotypes
+	return[0] - whether coding was flipped (the major allele was 1 in the input genotypes)
+	"""
+
+	genotypes = map(lambda x: x.replace("/","").replace("|",""),genotypes)
+	c0 = sum(map(lambda x: x.count('0'),genotypes))
+	c1 = (2 * len(genotypes)) - c0
+
+	flip = c1 > c0
+
+	trans = {
+		'00' : 0 if not flip else 2,
+		'01' : 1,
+		'10' : 1,
+		'11' : 2 if not flip else 0,
+		'..' : np.nan
+	}
+
+	recoded = np.array(map(trans.get,genotypes),dtype=np.float16)
+
+	if np.isnan(recoded).all():
+		maf = np.nan
+	else:
+		maf = np.nansum(recoded) / float(2 * len(recoded))
+
+	return recoded, flip, maf
+
 def add_rare_count(dframe,marker_col="MARKER_ID",geno_col="GENOTYPE",count_col="RARE_COUNT",filter=None):
 	"""
 	Adds a rare count column denoting the number of rare alleles. This function assumes the data frame being passed in
@@ -81,7 +122,7 @@ def df_to_js(dframe,fname,js_out,write_tab=True,float_format=None):
 			js_out.replace(".js",".tsv"),
 			sep="\t",
 			index=False,
-		  float_format=float_format,
+			float_format=float_format,
 			na_rep="NA"
 		)
 
