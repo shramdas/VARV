@@ -34,13 +34,15 @@ def bootstrap_lib(lib_path):
 
 bootstrap_lib("/net/snowwhite/home/welchr/lib/python2.7/site-packages");
 
-import os, sys, re, getopt, subprocess, gzip, numpy, time, optparse, logging, pprint, signal
+import os, sys, re, getopt, subprocess, gzip, numpy, time
+import operator, optparse, logging, pprint, signal
 import pandas
 import pandas.computation.ops
 import runepacts
 from copy import deepcopy
 from runepacts.util import *
 from distutils.dir_util import mkpath
+from itertools import repeat
 import functools as ft
 
 _RUNEPACTS_DEBUG = True
@@ -62,7 +64,7 @@ def get_defaults():
 	defaults = dict()
 
 	defaults['PEDCOLUMNS'] = []
-	defaults['PVALUETHRESHOLD'] = 0.05
+	defaults['PVALUETHRESHOLD'] = 0.001
 	defaults['SEPCHR'] = False
 	defaults['SINGLEMARKERTEST'] = 'q.linear'
 	defaults['FILTERMAF'] = 0.05
@@ -159,10 +161,10 @@ def run_plots(options,out_prefix,plot_prefix,phenotype):
 
 		run_bash(run_cmd)
 
-	if _RUNEPACTS_DEBUG:
-		debug(run_cmd)
-	else:
-		warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
+		if _RUNEPACTS_DEBUG:
+			debug(run_cmd)
+		else:
+			warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
 
 def check_analysis(adict):
 	"""
@@ -415,14 +417,15 @@ def main():
 		marker_max_maf = '-max-maf ' + str(aopts['MARKERMAXMAF'])
 		covariates = aopts["COVARIATES"]
 		phenotype = aopts["PHENOTYPE"]
+		group_pval_threshold = aopts["PVALUETHRESHOLD"]
 
 		tests_to_write = ",".join([t.split("=")[1] for t in tests])
 
 		if opts.plotonly:
-			logger.info("Creating plots...")
-			run_plots(aopts,phenotype,covariates,tests_to_write,aopts["PVALUETHRESHOLD"])
+			#logger.info("Creating plots...")
+			#run_plots(aopts,phenotype,covariates,tests_to_write,aopts["PVALUETHRESHOLD"])
 
-			continue
+			raise NotImplementedError, "--plotonly temporarily removed while new plotting code underway"
 
 		# First step: Index VCF if tabix index file does not already exist
 		# if sepchr is on, then tabix all other chromosomes too
@@ -929,27 +932,31 @@ def main():
 		# Note in this case, since it's gene based tests, the MARKER_ID is actually the "group" or the gene tested
 		# in the form of chr:start-end_gene
 		all_grp_test_results = all_grp_test_results.sort(["#CHROM",'BEGIN'],inplace=False)
-		all_grp_test_results = all_grp_test_results[all_grp_test_results.PVALUE <= float(aopts['PVALUETHRESHOLD'])]
+
+		# Make a separate df with only the significant gene based test results
+		all_sig_grp_test_results = all_grp_test_results[all_grp_test_results.PVALUE <= group_pval_threshold]
 
 		# List of genes that were significant
-		genes = all_grp_test_results['MARKER_ID'].drop_duplicates()
+		genes = all_sig_grp_test_results['MARKER_ID'].drop_duplicates()
 
 		# if output is empty, then ??
-		if len(all_grp_test_results) == 0:
+		if len(all_sig_grp_test_results) == 0:
 			logger.warning("EPACTS groupwise test returned no significant results.")
 			continue
-		
-		marker_names = pandas.DataFrame({ "MARKER_ID" : marker_names })
+	
+		sig_gene_markers = reduce(operator.add,map(marker_list_for_genes.get,all_sig_grp_test_results.GENE))
+		sig_gene_markers = filter(lambda x: x is not None,sig_gene_markers)
+		sig_gene_markers = set(sig_gene_markers)
 
-		marker_names["CHROM"] = marker_names.iloc[:,0].map(lambda x: x.split(":")[0])
-		marker_names["POS"] = marker_names.iloc[:,0].map(lambda x: x.split("_")[0].split(":")[1]).astype("int")
-		marker_names["START"] = marker_names["POS"] - 1
-		marker_names["END"] = marker_names["POS"] + 1
-		marker_names.sort(["CHROM","POS"],inplace=True)
+		for_sig_marker_bed = pandas.DataFrame({ "MARKER_ID" : list(sig_gene_markers) })
+		for_sig_marker_bed["CHROM"] = for_sig_marker_bed.iloc[:,0].map(lambda x: x.split(":")[0])
+		for_sig_marker_bed["POS"] = for_sig_marker_bed.iloc[:,0].map(lambda x: x.split("_")[0].split(":")[1]).astype("int")
+		for_sig_marker_bed["START"] = for_sig_marker_bed["POS"] - 1
+		for_sig_marker_bed["END"] = for_sig_marker_bed["POS"] + 1
+		for_sig_marker_bed.sort(["CHROM","POS"],inplace=True)
 
 		sig_genes_bed = aopts['OUTPREFIX'] + '.variants_from_sig_genes.txt'
-
-		marker_names_bed = marker_names["CHROM START END".split()]
+		marker_names_bed = for_sig_marker_bed["CHROM START END".split()]
 		marker_names_bed.to_csv(sig_genes_bed,sep="\t",index=False,index_label=False,header=False)
 
 		# Create a VCF file with only the variants from within significant genes
@@ -992,46 +999,60 @@ def main():
 		vcf_sig_gene_melted.GENOTYPE = vcf_sig_gene_melted.GENOTYPE.str.replace(':.*','')							  # Drop remaining fields after GT
 		vcf_sig_gene_melted = vcf_sig_gene_melted[~ vcf_sig_gene_melted.GENOTYPE.str.contains("\.")]		# Drop missing genos
 
-		# This part just collects per gene the single variant results along with the gene level test results into
-		# one final data frame.
+		def merge_group_and_single_results(group_results,single_results,markers_per_gene,passing_genes):
+			"""
+			This function collects per gene the single variant results along with the gene level test results
+			into one final data frame, like this:
 
-		pivot_grp_results = all_grp_test_results["MARKER_ID TEST PVALUE".split()].pivot("MARKER_ID","TEST","PVALUE")
-		pivot_grp_results.rename(columns = dict(zip(pivot_grp_results.columns,map(lambda x: x + ".P",pivot_grp_results.columns))),inplace=True)
+				 GENE      mmskat.P          VARIANT      SV.P     BETA      MAF  MAC  GENE_FILTERED  GENE_SIG
+			0  LCAT  7.242200e-01  16:67976823_C/T  0.724200  0.04040  0.00467   79              1         0
+			1  LIPG  6.196300e-11  18:47091686_G/A  0.000003  0.76050  0.00225   38              0         1
+			2  LIPG  6.196300e-11  18:47095862_C/T  0.000184  0.43700  0.00450   76              0         1
+			3  LIPG  6.196300e-11  18:47101838_G/A  0.791900 -0.26300  0.00006    1              0         1
+			4  LIPG  6.196300e-11  18:47109939_G/A  0.957000 -0.01924  0.00047    8              0         1
+			5  LIPG  6.196300e-11  18:47109955_A/G  0.000044  0.36990  0.00728  123              0         1
+			"""
 
-		all_gene_sv_results = []
-		for gene in genes:
-			genename = gene.split('_')[1]
+			pivot_grp_results = group_results["MARKER_ID TEST PVALUE".split()].pivot("MARKER_ID","TEST","PVALUE")
+			pivot_grp_results.rename(columns = dict(zip(pivot_grp_results.columns,map(lambda x: x + ".P",pivot_grp_results.columns))),inplace=True)
+			group_p_cols = list(pivot_grp_results.columns)
+			pivot_grp_results["GENE_SIG"] = pivot_grp_results.apply(lambda x: (x < group_pval_threshold).any(),axis=1).astype("int")
 
-			# Pull out single variant results for this specific gene's variants
-			gene_variants = marker_list_for_genes[genename]
-			gene_sv_results = single_marker_results[single_marker_results.MARKER_ID.isin(gene_variants)]
+			# This crazy thing just takes a dictionary of gene --> [marker list] pairs and converts it into a unpivoted data frame, like:
+			# gene1 rs1
+			# gene1 rs2
+			# gene1 rs3
+			# gene2 rs8
+			df_markers_for_genes = pandas.DataFrame.from_records(reduce(operator.add,map(lambda x: zip(repeat(x[0]),x[1]),markers_per_gene.iteritems())))
+			df_markers_for_genes.columns = "GENE VARIANT".split()
+			df_markers_for_genes["GENE_FILTERED"] = (~df_markers_for_genes["GENE"].isin(passing_genes)).astype("int")
 
-			# Add in the group
-			gene_sv_results["GROUP"] = gene
+			gsv1 = group_results["MARKER_ID GENE".split()]
+			gsv1.rename(columns = {"MARKER_ID" : "GROUP"},inplace=True)
 
-			# Was this gene filtered out? Only filtered genes actually made it to analysis.
-			gene_sv_results["GENE_FILTERED"] = int(genename not in genes_passing_filters)
-
-			# Change a few column names
-			gene_sv_results.rename(columns = {
+			gsv2 = pandas.merge(gsv1,df_markers_for_genes,on="GENE")
+			gsv3 = pandas.merge(gsv2,single_results,left_on="VARIANT",right_on="MARKER_ID")
+			gsv3.rename(columns = {
 				"PVALUE" : "SV.P",
-				"MARKER_ID" : "VARIANT"
 			},inplace=True)
+			gsv4 = pandas.merge(gsv3,pivot_grp_results,left_on="GROUP",right_index=True)
+			gsv5 = gsv4.drop("GROUP MARKER_ID AC NS".split(),axis=1)
+			s5_col_order = ["GENE"] + group_p_cols + "VARIANT SV.P BETA MAF MAC GENE_FILTERED GENE_SIG".split()
+			gsv5 = gsv5[s5_col_order]
 
-			# Drop a few unneeded columns
-			del gene_sv_results["AC"]
-			del gene_sv_results["NS"]
+			try:
+				gsv5["MAC"] = gsv5["MAC"].astype("int")
+			except:
+				pass
 
-			all_gene_sv_results.append(gene_sv_results)
+			return gsv5
 
-		all_gene_sv_results = pandas.concat(all_gene_sv_results)
-		gene_final = pandas.merge(pivot_grp_results,all_gene_sv_results,left_index=True,right_on="GROUP")
-		gene_final.insert(0,"GENE",gene_final.GROUP.map(lambda x: x.split("_")[1]))
-		try:
-			gene_final["MAC"] = gene_final["MAC"].astype("int")
-		except:
-			pass
-		del gene_final["GROUP"]
+		gene_final = merge_group_and_single_results(
+			all_grp_test_results,
+			single_marker_results,
+			marker_list_for_genes,
+			genes_passing_filters
+		)
 
 		# Merge annotations in with single variant results.
 		# In this case, we have to load the entire annotation file, because the user may have specified a group file.
@@ -1073,8 +1094,9 @@ def main():
 
 		# Write out single variant and gene test results for plotting.
 		# We only want those single variant results for genes passing filters, though.
-		gene_final_filtered = gene_final[gene_final["GENE_FILTERED"] != 1]
+		gene_final_filtered = gene_final.query("(GENE_SIG == 1) & (GENE_FILTERED != 1)")
 		del gene_final_filtered["GENE_FILTERED"]
+		del gene_final_filtered["GENE_SIG"]
 		df_to_js(gene_final_filtered,"genes",os.path.join(html_dir,"plot_genes.js"),float_format="%0.3g",write_tab=True)
 
 		# Write out single variant results for creating QQ plots and manhattan plots.
