@@ -937,7 +937,8 @@ def main():
 		all_sig_grp_test_results = all_grp_test_results[all_grp_test_results.PVALUE <= group_pval_threshold]
 
 		# List of genes that were significant
-		genes = all_sig_grp_test_results['MARKER_ID'].drop_duplicates()
+		sig_groups = all_sig_grp_test_results['MARKER_ID'].drop_duplicates()
+		sig_genes = map(lambda x: x.split("_")[1],sig_groups)
 
 		# if output is empty, then ??
 		if len(all_sig_grp_test_results) == 0:
@@ -1080,6 +1081,35 @@ def main():
 			gene_final = pandas.merge(gene_final,annofile,left_on='VARIANT',right_on='EPACTS',how="left")
 			del gene_final['EPACTS']
 
+		# Gene/single results reduced to genes that are significant, and passed filters.
+		gene_final_filtered = gene_final.query("(GENE_SIG == 1) & (GENE_FILTERED != 1)")
+		del gene_final_filtered["GENE_FILTERED"]
+		del gene_final_filtered["GENE_SIG"]
+
+		def genotype_trait_tables(genes,genotypes,ped,phenotype,markers_per_gene,outprefix):
+			pcols = ["IND_ID",phenotype]
+			tables = []
+
+			for gene in genes:
+				markers = markers_per_gene.get(gene)
+				if markers is None:
+					continue
+
+				s1 = genotypes.query("MARKER_ID in @markers")
+				s2 = s1.iloc[:,1:].transpose()
+				s2.columns = s1.MARKER_ID
+				s3 = pandas.merge(ped[pcols],s2,right_index=True,left_on="IND_ID")
+				s3.sort(phenotype,inplace=True)
+
+				tables.append((gene,s3))
+
+				out = outprefix + ".genotype_trait_table.gene-%s.tab" % gene
+				s3.to_csv(out,sep="\t",index=False)
+
+			return tables
+
+		gt_tables = genotype_trait_tables(gene_final_filtered.GENE.unique(),for_melt,pedfile,phenotype,marker_list_for_genes,aopts["OUTPREFIX"])
+
 		# Where should we write the top genes plot?
 		html_dir = os.path.join(aopts["OUTPREFIX"] + ".plots/")
 		mkpath(html_dir)
@@ -1094,9 +1124,6 @@ def main():
 
 		# Write out single variant and gene test results for plotting.
 		# We only want those single variant results for genes passing filters, though.
-		gene_final_filtered = gene_final.query("(GENE_SIG == 1) & (GENE_FILTERED != 1)")
-		del gene_final_filtered["GENE_FILTERED"]
-		del gene_final_filtered["GENE_SIG"]
 		df_to_js(gene_final_filtered,"genes",os.path.join(html_dir,"plot_genes.js"),float_format="%0.3g",write_tab=True)
 
 		# Write out single variant results for creating QQ plots and manhattan plots.
@@ -1127,6 +1154,10 @@ def main():
 
 		# Create PDFs of plots.
 		run_plots(aopts,aopts["OUTPREFIX"],html_dir,phenotype)
+
+		# from IPython.core.debugger import Tracer
+		# debug = Tracer()
+		# debug()
 
 if __name__ == "__main__":
 	main()
