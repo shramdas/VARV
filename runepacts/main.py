@@ -17,6 +17,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
+PROG_NAME = "RUNEPACTS"
+PROG_VERSION = "0.1"
+PROG_DATE = "12/10/2014"
+PROG_AUTHORS = [
+	"Shweta Ramdas (sramdas@umich.edu)",
+	"Ryan Welch (welchr@umich.edu)"
+]
+PROG_URL = "https://github.com/shramdas/runepacts"
 
 def bootstrap_lib(lib_path):
 	import os, sys
@@ -42,7 +50,7 @@ import runepacts
 from copy import deepcopy
 from runepacts.util import *
 from distutils.dir_util import mkpath
-from itertools import repeat
+from itertools import repeat, chain
 import functools as ft
 
 pandas.set_option('chained_assignment',None)
@@ -53,6 +61,27 @@ _RUNEPACTS_DEBUG = False
 EPACTS_KIN_FILTER_ARGS = "-min-maf 0.01 -min-callrate 0.95"
 EPACTS_MAKE_GROUP_ARGS = "-nonsyn"
 KINSHIP_TESTS = "q.emmax emmax emmaxVT emmaxCMC emmaxSKAT mmskat".split()
+
+def print_program_header():
+	prog_string = "%s - %s (%s)" % (PROG_NAME,PROG_VERSION,PROG_DATE)
+	max_length = max(map(len,[prog_string,PROG_URL]) + map(len,PROG_AUTHORS))
+	max_length += 4; # buffer
+
+	# Top line
+	def print_table_line(width=max_length):
+		print "".join(chain("+",repeat('-',max_length),"+"))
+
+	print_table_line()
+
+	# Rows
+	print "|%s|" % str.center(prog_string,max_length)
+	print_table_line()
+	for auth in PROG_AUTHORS:
+		print "|%s|" % str.center(auth,max_length)
+	print_table_line()
+	print "|%s|" % str.center(PROG_URL,max_length)
+	print_table_line()
+	print ""
 
 def get_defaults():
 	"""
@@ -360,6 +389,8 @@ def gen_analysis_key(an):
 	return hashlib.md5("".join([str(x) for x in an.itervalues()])).hexdigest()
 
 def main():
+	print_program_header()
+
 	op = optparse.OptionParser()
 	op.add_option("--plotonly",help="Only create the plot PDF, assuming you've already run the pipeline once.",default=False,action="store_true")
 
@@ -416,6 +447,7 @@ def main():
 		df_opts = pandas.DataFrame([(k,v) for k,v in aopts.iteritems()],columns=["Option","Value"])
 		df_opts.sort("Option",inplace=True)
 		logger.info(df_opts.to_string(index=False))
+		logger.info("")
 
 		orig_vcf_path = aopts["VCFFILE"]
 		epacts = aopts["EPACTS"]
