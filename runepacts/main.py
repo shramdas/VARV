@@ -94,24 +94,17 @@ def get_defaults():
 	defaults['PVALUETHRESHOLD'] = 0.001
 	defaults['SEPCHR'] = False
 	defaults['SINGLEMARKERTEST'] = 'q.linear'
-	defaults['FILTERMAF'] = 0.05
-	defaults['MINMAF'] = 0
 	defaults['GENEMINMAC'] = 5
-	defaults['MAXMAF'] = 1
 	defaults['VERBOSE'] = False
 	defaults['GENELIST'] = None
-	defaults['MINMAC'] = 0
-	# defaults['ANNOTGENECOL'] = 4
-	# defaults['ANNOTVARCOL'] = 0
-	# defaults['ANNOTPOSCOL'] = 1
 	defaults['ANNOT_GENE_COL'] = "vepGENE"
 	defaults['ANNOT_CHROM_COL'] = "CHROM"
 	defaults['ANNOT_POS_COL'] = "POS"
 	defaults['ANNOT_REF_COL'] = "REF"
 	defaults['ANNOT_ALT_COL'] = "ALT"
-	defaults['MARKERMINMAF'] = 0
-	defaults['MARKERMAXMAF'] = 1
-	defaults['MARKERMINMAC'] = 1
+	defaults['MIN_MAF'] = 0
+	defaults['MAX_MAF'] = 0.05
+	defaults['MIN_MAC'] = 1
 	defaults['MINVARS'] = 2
 	defaults['EPACTS'] = 'epacts'
 	defaults['EPACTSCMD'] = ''
@@ -335,13 +328,15 @@ def read_config(filepath):
 			if key in "ANNOTGENECOL ANNOTVARCOL ANNOTPOSCOL".split():
 				value = int(value) - 1
 
-			if key == "MARKERMINMAF":
+			if key in "MIN_MAF MAX_MAF".split():
 				value = float(value)
+				if value < 0 or value > 1:
+					die("Error: invalid %s in config file: %s" % (key,str(value)))
 
-			if key == "MARKERMINMAC":
+			if key == "MIN_MAC":
 				value = int(value)
 				if value < 0:
-					die("Error: invalid MARKERMINMAC in config file: %s" % str(value))
+					die("Error: invalid %s in config file: %s" % (key,str(value)))
 
 			if key == "GENEMINMAC":
 				value = int(value)
@@ -454,10 +449,9 @@ def main():
 		pedcolumns = aopts["PEDCOLUMNS"]
 		user_cmd = aopts.get("EPACTSCMD","")
 		field = '-field %s' % aopts["FIELD"] if "FIELD" in aopts else ' '
-		min_maf = " -min-maf %s" % str(aopts["MINMAF"])
-		marker_min_maf = '-min-maf ' + str(aopts['MARKERMINMAF'])
-		marker_min_mac = '-min-mac ' + str(aopts['MARKERMINMAC'])
-		marker_max_maf = '-max-maf ' + str(aopts['MARKERMAXMAF'])
+		min_maf = '-min-maf ' + str(aopts['MIN_MAF'])
+		max_maf = '-max-maf ' + str(aopts['MAX_MAF'])
+		min_mac = '-min-mac ' + str(aopts['MIN_MAC'])
 		covariates = aopts["COVARIATES"]
 		phenotype = aopts["PHENOTYPE"]
 		group_pval_threshold = aopts["PVALUETHRESHOLD"]
@@ -811,7 +805,7 @@ def main():
 				final_kinship_file = aopts["KINSHIPFILE"]
 
 		# Run single marker epacts test
-		logger.info("Running single variant EPACTS test...")
+		logger.info("Running single variant EPACTS...")
 
 		epacts_cmd = "{epacts_loc} single --vcf {vcf} -ped {ped} -pheno {pheno} {covar_cmd} -test {test} {kinship_cmd} " \
 								 "{marker_min_maf} {marker_max_maf} {marker_min_mac} -out {out} {field} -run {njobs} {mosix} " \
@@ -825,9 +819,9 @@ def main():
 			covar_cmd = covar_cmd,
 			test = aopts['SINGLEMARKERTEST'],
 			kinship_cmd = "-kin %s" % final_kinship_file if need_kinship_single else "",
-			marker_min_maf = marker_min_maf,
-			marker_max_maf = marker_max_maf,
-			marker_min_mac = marker_min_mac,
+			marker_min_maf = min_maf,
+			marker_max_maf = max_maf,
+			marker_min_mac = min_mac,
 			field = field,
 			out = aopts['OUTPREFIX'] + '.singlemarker',
 			njobs = aopts["NJOBS"],
@@ -838,18 +832,17 @@ def main():
 		logger.debug(epacts_cmd)
 		run_bash_vlevel(epacts_cmd)
 
-		# Read in single marker results
+		# Read in single marker results.
 		single_marker_results = pandas.read_table(aopts['OUTPREFIX'] + '.singlemarker.epacts.gz',compression="gzip")
 		single_marker_results["MARKER_ID"] = single_marker_results["MARKER_ID"].map(epacts_no_extra)
 		single_marker_results = single_marker_results["MARKER_ID PVALUE BETA NS AC MAF".split()]
-#		single_marker_results['MAC'] = single_marker_results['NS'] * 2 * single_marker_results['MAF']
 		single_marker_results["MAC"] = single_marker_results.apply(lambda x: min(2 * x["NS"] - x["AC"],x["AC"]),axis=1)
 		single_marker_results.index = single_marker_results["MARKER_ID"]
 		
 		# Get variants that pass the MAF/MAC filter
-		pass_snps = single_marker_results[single_marker_results['MAF'] < float(aopts['FILTERMAF'])]
-		pass_snps = pass_snps[pass_snps['MAF'] >= aopts['MINMAF']]
-		pass_snps = pass_snps[pass_snps['MAC'] >= aopts['MARKERMINMAC']]
+		pass_snps = single_marker_results[single_marker_results['MAF'] < aopts['MAX_MAF']]
+		pass_snps = pass_snps[pass_snps['MAF'] >= aopts['MIN_MAF']]
+		pass_snps = pass_snps[pass_snps['MAC'] >= aopts['MIN_MAC']]
 		macs = pass_snps[['MARKER_ID','MAC']].drop_duplicates()
 		pass_snps = list(pass_snps['MARKER_ID'])
 
@@ -858,52 +851,44 @@ def main():
 		out_groupfile = aopts["OUTPREFIX"] + ".groupfile.filtered.txt"
 		newgroupfile = open(out_groupfile, 'w')
 		marker_list_for_genes = dict()
-		macs_of_genes = dict()
 		genes_passing_filters = set()
-		marker_names = []
-		
+
 		logger.info("Filtering group file...")
 
-		# read in groupfile, and get the list of variants belonging to each gene. Store this in markerlistforgenes.
-		# Also get the genemac and the numvars for each gene and get the genes_passing_filters
-		for line in groupfile:
-			line = line.rstrip()
-			lsplit = line.split()
-			originaltemp = line.split()
-			genename = lsplit[0]
-			lsplit = lsplit[1:]
-			originaltemp = originaltemp[1:]
-			numvars = 0
-			mac = 0
-			towrite = genename
-			passed = False
+		with groupfile, newgroupfile:
+			# read in groupfile, and get the list of variants belonging to each gene. Store this in markerlistforgenes.
+			# Also get the genemac and the numvars for each gene and get the genes_passing_filters
+			for line in groupfile:
+				line = line.rstrip()
+				lsplit = line.split()
+				originaltemp = line.split()
+				genename = lsplit[0]
+				lsplit = lsplit[1:]
+				originaltemp = originaltemp[1:]
+				numvars = 0
+				mac = 0
+				towrite = genename
+				passed = False
 
-			# iterating over all markers in gene, find if gene passes filters
-			for ind in range(0,len(lsplit)):
-				original = lsplit[ind]
-				if lsplit[ind] in pass_snps:
-					passed = True
-					towrite = towrite + "\t" + original
-					numvars += 1
-					mac += float(macs[macs['MARKER_ID'] == lsplit[ind]]['MAC'])
-			
-			if (mac >= aopts['GENEMINMAC']) and (numvars >= aopts['MINVARS']):
-				genes_passing_filters.add(genename)
+				# iterating over all markers in gene, find if gene passes filters
 				for ind in range(0,len(lsplit)):
+					original = lsplit[ind]
 					if lsplit[ind] in pass_snps:
-						marker_names.append(originaltemp[ind])
-			else:
-				#logger.debug("gene %s failed filters - GENEMINMAC: %f | MINVARS: %i" % (genename,mac,numvars))
-				pass
-			
-			if passed:
-				newgroupfile.write(towrite + "\n")
+						passed = True
+						towrite = towrite + "\t" + original
+						numvars += 1
+						mac += float(macs[macs['MARKER_ID'] == lsplit[ind]]['MAC'])
 
-			marker_list_for_genes[genename] = lsplit
-			macs_of_genes[genename] = mac
-			
-		groupfile.close()
-		newgroupfile.close()
+				if (mac >= aopts['GENEMINMAC']) and (numvars >= aopts['MINVARS']):
+					genes_passing_filters.add(genename)
+				else:
+					#logger.debug("gene %s failed filters - GENEMINMAC: %f | MINVARS: %i" % (genename,mac,numvars))
+					pass
+
+				if passed:
+					newgroupfile.write(towrite + "\n")
+
+				marker_list_for_genes[genename] = lsplit
 
 		# Write out the genes passing filters
 		with open(aopts['OUTPREFIX'] + '.genes_passing_filters.txt','w') as out:
@@ -922,7 +907,7 @@ def main():
 				skato_cmd = ""
 
 			epacts_cmd = "{epacts} {type} -test {test} {skato} -vcf {vcf} -pheno {pheno} -ped {ped} -groupf {groupfile} -out {out} " \
-									 "{min_maf} {min_mac} {covar} {user_cmd} {kin_cmd} -run {njobs} {mosix} {remlf}"
+									 "{min_maf} {min_mac} {max_maf} {covar} {user_cmd} {kin_cmd} -run {njobs} {mosix} {remlf}"
 
 			run_cmd = epacts_cmd.format(
 				epacts = epacts,
@@ -934,7 +919,8 @@ def main():
 				groupfile = out_groupfile,
 				out = aopts['OUTPREFIX'] + '.' + avalue,
 				min_maf = min_maf,
-				min_mac = marker_min_mac,
+				min_mac = min_mac,
+				max_maf = max_maf,
 				covar = covar_cmd,
 				user_cmd = user_cmd,
 				kin_cmd = "-kin %s" % final_kinship_file if need_kinship_group else "",
