@@ -45,16 +45,14 @@ from distutils.dir_util import mkpath
 from itertools import repeat
 import functools as ft
 
-_RUNEPACTS_DEBUG = True
+pandas.set_option('chained_assignment',None)
+pandas.set_option('display.max_colwidth',120)
+
+_RUNEPACTS_DEBUG = False
 
 EPACTS_KIN_FILTER_ARGS = "-min-maf 0.01 -min-callrate 0.95"
 EPACTS_MAKE_GROUP_ARGS = "-nonsyn"
 KINSHIP_TESTS = "q.emmax emmax emmaxVT emmaxCMC emmaxSKAT mmskat".split()
-
-# Freeze the verbose argument of run_bash to be dependent on whether
-# we're in debug mode.
-# Now you can just call run_bash(cmd) without specifying verbose.
-run_bash = ft.partial(run_bash,verbose=_RUNEPACTS_DEBUG)
 
 def get_defaults():
 	"""
@@ -71,7 +69,7 @@ def get_defaults():
 	defaults['MINMAF'] = 0
 	defaults['GENEMINMAC'] = 5
 	defaults['MAXMAF'] = 1
-	defaults['VERBOSE'] = 'OFF'
+	defaults['VERBOSE'] = False
 	defaults['GENELIST'] = None
 	defaults['MINMAC'] = 0
 	# defaults['ANNOTGENECOL'] = 4
@@ -145,6 +143,8 @@ def run_plots(options,out_prefix,plot_prefix,phenotype):
 	warn = logging.getLogger(log_key).warning
 	debug = logging.getLogger(log_key).debug
 
+	b_verbose = _RUNEPACTS_DEBUG or options["VERBOSE"]
+
 	# These files must have been previously created by the pipeline.
 	required_for_plot = map(lambda x: out_prefix + x,[".single_variant_combined.txt"]);
 
@@ -159,12 +159,10 @@ def run_plots(options,out_prefix,plot_prefix,phenotype):
 			script = plot_loc
 		)
 
-		run_bash(run_cmd)
+		run_bash(run_cmd,verbose=b_verbose)
 
-		if _RUNEPACTS_DEBUG:
-			debug(run_cmd)
-		else:
-			warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
+	else:
+		warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
 
 def check_analysis(adict):
 	"""
@@ -335,6 +333,12 @@ def read_config(filepath):
 			if key == "SEPCHR":
 				value = True
 
+			if key == "VERBOSE":
+				if value in ("OFF","0","FALSE"):
+					value = False
+				else:
+					value = True
+
 			if key == "SKATO":
 				value = True
 
@@ -374,6 +378,11 @@ def main():
 	# commands.
 	for aopts in analyses:
 		tests = aopts["TEST"]
+		b_verbose = aopts["VERBOSE"] or _RUNEPACTS_DEBUG
+
+		# Freeze the verbose argument of run_bash to be dependent on whether
+		# we're in debug or verbose mode.
+		run_bash_vlevel = ft.partial(run_bash,verbose=b_verbose)
 
 		if len(tests) == 0:
 			die("Error: must specify at least 1 test for each PROCESS.")
@@ -397,14 +406,16 @@ def main():
 		# Setup logging to STDOUT
 		logger.addHandler(logging.StreamHandler(sys.stdout))
 
-		# If we're in debug mode, print everything.
-		if _RUNEPACTS_DEBUG:
+		# If we're in debug mode, or they want verbose output, print everything.
+		if b_verbose:
 			logger.setLevel(logging.DEBUG)
 		else:
 			logger.setLevel(logging.INFO)
 
 		logger.info("Running analysis: ")
-		logger.info(pprint.pformat(aopts))
+		df_opts = pandas.DataFrame([(k,v) for k,v in aopts.iteritems()],columns=["Option","Value"])
+		df_opts.sort("Option",inplace=True)
+		logger.info(df_opts.to_string(index=False))
 
 		orig_vcf_path = aopts["VCFFILE"]
 		epacts = aopts["EPACTS"]
@@ -437,14 +448,14 @@ def main():
 
 				tabix_cmd = "tabix -p vcf %s" % f
 				logger.debug(tabix_cmd)
-				run_bash(tabix_cmd)
+				run_bash_vlevel(tabix_cmd)
 
 		elif not os.path.isfile(orig_vcf_path + '.tbi'):
 			logger.info("Indexing VCF...")
 
 			tabix_command = 'tabix -p vcf -f ' + orig_vcf_path
 			logger.debug(tabix_command)
-			run_bash(tabix_command)
+			run_bash_vlevel(tabix_command)
 
 		# The VCF used for tests may end up being different than the original full VCF file
 		# For example, if filtered down to a specific set of genes using GENELIST
@@ -533,7 +544,7 @@ def main():
 					)
 
 					logger.debug(annot_cmd)
-					run_bash(annot_cmd)
+					run_bash_vlevel(annot_cmd)
 
 					annot_cmd = "{epacts} make-group -vcf {vcf} -out {out} --format epacts {args}".format(
 						epacts = epacts,
@@ -542,7 +553,7 @@ def main():
 						args = EPACTS_MAKE_GROUP_ARGS
 					)
 					logger.debug(annot_cmd)
-					run_bash(annot_cmd)
+					run_bash_vlevel(annot_cmd)
 
 				# SEPCHR, so we annotate each chromosome separately
 				else:
@@ -563,7 +574,7 @@ def main():
 							out = aopts['OUTPREFIX'] + '.anno.' + sep_vcf_name
 						)
 						logger.debug(annot_cmd)
-						run_bash(annot_cmd)
+						run_bash_vlevel(annot_cmd)
 
 						annot_cmd = "{epacts} make-group -vcf {vcf} -out {out} -format epacts {args}".format(
 							epacts = epacts,
@@ -572,14 +583,14 @@ def main():
 							args = EPACTS_MAKE_GROUP_ARGS
 						)
 						logger.debug(annot_cmd)
-						run_bash(annot_cmd)
+						run_bash_vlevel(annot_cmd)
 
 						annot_cmd = "cat {0} >> {1}".format(
 							aopts['OUTPREFIX'] + '.group.' + sep_vcf_name,
 							final_groupfile_name
 						)
 						logger.debug(annot_cmd)
-						run_bash(annot_cmd)
+						run_bash_vlevel(annot_cmd)
 
 			# They specified an annotation file, so we should use that instead of EPACTS' anno.
 			else:
@@ -685,11 +696,11 @@ def main():
 				out = gene_vcf + ".gz"
 			)
 			logger.debug(tabixcommand)
-			run_bash(tabixcommand)
+			run_bash_vlevel(tabixcommand)
 
 			tabixcommand = 'tabix -p vcf -f ' + gene_vcf + ".gz"
 			logger.debug(tabixcommand)
-			run_bash(tabixcommand)
+			run_bash_vlevel(tabixcommand)
 
 		else:
 			first = True
@@ -702,7 +713,7 @@ def main():
 						out = gene_vcf
 					)
 					logger.debug(tabixcommand)
-					run_bash(tabixcommand)
+					run_bash_vlevel(tabixcommand)
 
 					first = False
 
@@ -713,18 +724,18 @@ def main():
 					out = gene_vcf
 				)
 				logger.debug(tabixcommand)
-				run_bash(tabixcommand)
+				run_bash_vlevel(tabixcommand)
 
 			bgzip_cmd = "bgzip -c {vcf} >| {out}".format(
 				vcf = gene_vcf,
 				out = gene_vcf + ".gz"
 			)
 			logger.debug(bgzip_cmd)
-			run_bash(bgzip_cmd)
+			run_bash_vlevel(bgzip_cmd)
 
 			tabixcommand = 'tabix -p vcf -f ' + gene_vcf + ".gz"
 			logger.debug(tabixcommand)
-			run_bash(tabixcommand)
+			run_bash_vlevel(tabixcommand)
 
 			try:
 				os.remove(gene_vcf)
@@ -761,7 +772,7 @@ def main():
 					filters = EPACTS_KIN_FILTER_ARGS
 				)
 
-				run_bash(make_kin_cmd)
+				run_bash_vlevel(make_kin_cmd)
 				logger.debug(make_kin_cmd)
 
 			else:
@@ -793,7 +804,7 @@ def main():
 		)
 
 		logger.debug(epacts_cmd)
-		run_bash(epacts_cmd)
+		run_bash_vlevel(epacts_cmd)
 
 		# Read in single marker results
 		single_marker_results = pandas.read_table(aopts['OUTPREFIX'] + '.singlemarker.epacts.gz',compression="gzip")
@@ -869,6 +880,7 @@ def main():
 				print >> out, gene
 
 		# Run the group based tests.
+		logger.info("Running gene-based tests...")
 		for grp_test in tests:
 			atype, avalue = grp_test.split("=")
 
@@ -901,7 +913,9 @@ def main():
 			)
 
 			logger.debug(run_cmd)
-			run_bash(run_cmd)
+			run_bash_vlevel(run_cmd)
+
+		logger.info("Starting to create output files and plots...")
 
 		# Read in group test results
 		all_grp_test_results = None
@@ -976,7 +990,7 @@ def main():
 		)
 
 		logger.debug(tabix_cmd)
-		run_bash(tabix_cmd)
+		run_bash_vlevel(tabix_cmd)
 
 		df_sig_gene_vars = vcf_pandas_load(sig_genes_vcf)
 		df_sig_gene_vars.rename(columns = {"#CHROM" : "CHROM"},inplace=True)
@@ -1158,6 +1172,8 @@ def main():
 		# from IPython.core.debugger import Tracer
 		# debug = Tracer()
 		# debug()
+
+		logger.info("DONE!")
 
 if __name__ == "__main__":
 	main()
