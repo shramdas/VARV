@@ -93,6 +93,7 @@ def get_defaults():
 	defaults['INPUTDIR'] = None
 	defaults['VCFFILE'] = None
 	defaults['VCFDIR'] = None
+	defaults['FIELD'] = None
 	defaults['COVARIATES'] = []
 	defaults['PHENOTYPE'] = None
 	defaults['MODEL'] = None
@@ -108,11 +109,13 @@ def get_defaults():
 	defaults['GENEMINMAC'] = 5
 	defaults['VERBOSE'] = False
 	defaults['GENELIST'] = None
+	defaults['ANNOTCOLUMNS'] = []
 	defaults['ANNOT_GENE_COL'] = "vepGENE"
 	defaults['ANNOT_CHROM_COL'] = "CHROM"
 	defaults['ANNOT_POS_COL'] = "POS"
 	defaults['ANNOT_REF_COL'] = "REF"
 	defaults['ANNOT_ALT_COL'] = "ALT"
+	defaults["FILTERANNOT"] = None
 	defaults['MIN_MAF'] = 0
 	defaults['MAX_MAF'] = 0.05
 	defaults['MIN_MAC'] = 1
@@ -342,6 +345,9 @@ def read_config(filepath):
 
 				continue
 
+			if key == "ANNOTCOLUMNS":
+				value = map(str.strip,value.strip().split(","))
+
 			if key in "MIN_MAF MAX_MAF".split():
 				value = float(value)
 				if value < 0 or value > 1:
@@ -466,7 +472,7 @@ def main():
 		epacts = aopts["EPACTS"]
 		pedcolumns = aopts["PEDCOLUMNS"]
 		user_cmd = aopts.get("EPACTSCMD","")
-		field = '-field %s' % aopts["FIELD"] if "FIELD" in aopts else ' '
+		field = '-field %s' % aopts["FIELD"] if aopts.get("FIELD") is not None else ' '
 		min_maf = '-min-maf ' + str(aopts['MIN_MAF'])
 		max_maf = '-max-maf ' + str(aopts['MAX_MAF'])
 		min_mac = '-min-mac ' + str(aopts['MIN_MAC'])
@@ -571,13 +577,13 @@ def main():
 		pedfile.to_csv(aopts['OUTPREFIX'] + '.pheno.ped', sep="\t",index=False, na_rep='NA')
 
 		# Create groupfile if one is not already given by the user
-		if 'GROUPFILE' not in aopts:
+		if aopts.get("GROUPFILE") is None:
 			logger.info("Creating groupfile...")
 
 			final_groupfile_name = aopts['OUTPREFIX'] + '.groupfile.txt'
 
 			# No annotation file provided by the user, so we have to use epacts to create the groupfile
-			if 'ANNOTFILE' not in aopts:
+			if aopts.get("ANNOTFILE") is None:
 				logger.info("No annotation file provided, using EPACTS to create group file")
 
 				if not aopts["SEPCHR"]:
@@ -638,9 +644,6 @@ def main():
 
 			# They specified an annotation file, so we should use that instead of EPACTS' anno.
 			else:
-				# A list of extra user-specified columns to keep along with the annotations.
-				annot_extra_cols = aopts["ANNOTCOLUMNS"].split(",") if "ANNOTCOLUMNS" in aopts else None
-
 				# Load in the annotation file.
 				# If FILTERANNOT was specified, it will be used to filter the data frame.
 				annofile = load_annotation(
@@ -650,7 +653,7 @@ def main():
 					aopts['ANNOT_REF_COL'],
 					aopts['ANNOT_ALT_COL'],
 					aopts['ANNOT_GENE_COL'],
-					annot_extra_cols,
+					aopts['ANNOTCOLUMNS'],
 					aopts.get("FILTERANNOT",None)
 				)
 
@@ -796,7 +799,7 @@ def main():
 		# Create a kinship matrix if needed.
 		final_kinship_file = None
 		if kinship_needed:
-			if "KINSHIPFILE" not in aopts:
+			if aopts.get("KINSHIPFILE") is None:
 				logger.info("Creating kinship matrix...")
 
 				# I don't think you ever want to use a few genes to calculate the kinship matrix...
@@ -844,7 +847,7 @@ def main():
 			out = aopts['OUTPREFIX'] + '.singlemarker',
 			njobs = aopts["NJOBS"],
 			mosix = aopts.get("MOSIX",""),
-			remlf = "-remlf %s" % aopts["REMLFILE"] if "REMLFILE" in aopts else ""
+			remlf = "-remlf %s" % aopts["REMLFILE"] if aopts.get("REMLFILE") is not None else ""
 		)
 
 		logger.debug(epacts_cmd)
@@ -945,7 +948,7 @@ def main():
 				njobs = aopts["NJOBS"],
 				mosix = aopts.get("MOSIX",""),
 				skato = skato_cmd,
-				remlf = "-remlf %s" % aopts["REMLFILE"] if "REMLFILE" in aopts else ""
+				remlf = "-remlf %s" % aopts["REMLFILE"] if aopts.get("REMLFILE") is not None else ""
 			)
 
 			logger.debug(run_cmd)
@@ -1110,9 +1113,7 @@ def main():
 		# If they did, and they accidentally specified an annotation filter, the annotation results would then be filtered,
 		# and cause some of the variants in the group file to be missing annotations.
 		# If that doesn't make sense, just trust me, load the entire thing.
-		if "ANNOTCOLUMNS" in aopts and "ANNOTFILE" in aopts:
-			annot_extra_cols = aopts["ANNOTCOLUMNS"].split(",")
-
+		if aopts.get("ANNOTFILE") is not None:
 			# Load in the annotation file.
 			annofile = load_annotation(
 				aopts["ANNOTFILE"],
@@ -1121,11 +1122,11 @@ def main():
 				aopts['ANNOT_REF_COL'],
 				aopts['ANNOT_ALT_COL'],
 				aopts['ANNOT_GENE_COL'],
-				annot_extra_cols,
+				aopts['ANNOTCOLUMNS'],
 				None
 			)
 
-			keep_cols = ["EPACTS"] + annot_extra_cols
+			keep_cols = ["EPACTS"] + aopts["ANNOTCOLUMNS"]
 			annofile = annofile[keep_cols]
 
 			gene_final = pandas.merge(gene_final,annofile,left_on='VARIANT',right_on='EPACTS',how="left")

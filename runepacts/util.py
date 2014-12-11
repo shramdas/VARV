@@ -446,7 +446,7 @@ def load_annotation(anno_file,chrom_col="CHROM",pos_col="POS",ref_col="REF",alt_
 
 	usecols = [chrom_col,pos_col,ref_col,alt_col,gene_col]
 
-	if annot_cols is not None:
+	if annot_cols is not None and len(annot_cols) > 0:
 		usecols.extend(annot_cols)
 
 	compr = "gzip" if anno_file.endswith(".gz") else ""
