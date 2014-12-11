@@ -117,7 +117,7 @@ def get_defaults():
 	defaults['ANNOT_ALT_COL'] = "ALT"
 	defaults["FILTERANNOT"] = None
 	defaults['MIN_MAF'] = 0
-	defaults['MAX_MAF'] = 0.05
+	defaults['MAX_MAF'] = 1
 	defaults['MIN_MAC'] = 1
 	defaults['MINVARS'] = 2
 	defaults['EPACTS'] = 'epacts'
@@ -211,7 +211,7 @@ def check_analysis(adict):
 	"""
 
 	# Required options
-	for k in "MODEL OUTPREFIX TEST EPACTS VCFFILE".split():
+	for k in "MODEL OUTPREFIX TEST EPACTS VCFFILE PEDFILE".split():
 		if k not in adict:
 			raise ValueError, "Error: option '%s' must be set in your config file" % k
 
@@ -1210,7 +1210,7 @@ def main():
 		# debug = Tracer()
 		# debug()
 
-		logger.info("DONE!")
+		logger.info("Completed @ %s" % time.strftime("%H:%m:%S %Y-%M-%d"))
 
 if __name__ == "__main__":
 	main()
