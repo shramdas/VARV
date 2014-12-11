@@ -324,10 +324,6 @@ def read_config(filepath):
 			if value in ("NA","NaN","None","."):
 				value = defaults[key]
 
-			# Handle specific cases
-			if key in "ANNOTGENECOL ANNOTVARCOL ANNOTPOSCOL".split():
-				value = int(value) - 1
-
 			if key in "MIN_MAF MAX_MAF".split():
 				value = float(value)
 				if value < 0 or value > 1:
