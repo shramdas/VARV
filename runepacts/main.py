@@ -90,6 +90,17 @@ def get_defaults():
 
 	defaults = dict()
 
+	defaults['INPUTDIR'] = None
+	defaults['VCFFILE'] = None
+	defaults['VCFDIR'] = None
+	defaults['COVARIATES'] = []
+	defaults['PHENOTYPE'] = None
+	defaults['MODEL'] = None
+	defaults['REMLFILE'] = None
+	defaults['GROUPFILE'] = None
+	defaults['KINSHIPFILE'] = None
+	defaults['ANNOTFILE'] = None
+	defaults['PEDFILE'] = None
 	defaults['PEDCOLUMNS'] = []
 	defaults['PVALUETHRESHOLD'] = 0.001
 	defaults['SEPCHR'] = False
@@ -107,6 +118,7 @@ def get_defaults():
 	defaults['MIN_MAC'] = 1
 	defaults['MINVARS'] = 2
 	defaults['EPACTS'] = 'epacts'
+	defaults['EPACTSDIR'] = None
 	defaults['EPACTSCMD'] = ''
 	defaults['NJOBS'] = 1
 	defaults['SKATO'] = False
@@ -196,9 +208,19 @@ def check_analysis(adict):
 	"""
 
 	# Required options
-	for k in "MODEL OUTPREFIX TEST".split():
+	for k in "MODEL OUTPREFIX TEST EPACTS VCFFILE".split():
 		if k not in adict:
 			raise ValueError, "Error: option '%s' must be set in your config file" % k
+
+		v = adict[k]
+
+		# Value should not be none for required options
+		if v is None:
+			raise ValueError, "Error: option '%s' must have a sensible value, got: %s" % (k,str(v))
+
+		# If a required option is a list, it should have at least 1 entry
+		if hasattr(v,"__iter__") and len(v) == 0:
+			raise ValueError, "Error: option '%s' must have at least one value, got: %s" % (k,str(v))
 
 	if len(adict["TEST"]) == 0:
 		raise ValueError, "Error: must specify at least 1 TEST for each PROCESS block in your config file."
@@ -320,10 +342,6 @@ def read_config(filepath):
 
 				continue
 
-			# This is apparently a "reset" back to default
-			if value in ("NA","NaN","None","."):
-				value = defaults[key]
-
 			if key in "MIN_MAF MAX_MAF".split():
 				value = float(value)
 				if value < 0 or value > 1:
@@ -369,6 +387,10 @@ def read_config(filepath):
 
 			if key == "PEDCOLUMNS":
 				value = value.split(",")
+
+			# This is apparently a "reset" back to default
+			if value in ("NA","NaN","None",".","RESET"):
+				value = defaults[key]
 
 			current[key] = value
 
