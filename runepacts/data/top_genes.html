@@ -1,0 +1,465 @@
+<html>
+
+<head>
+<script src="d3.min.js"></script>
+<script src="d3.tip.js"></script>
+<script src="plot_phenos.js"></script>
+<script src="plot_variants.js"></script>
+<script src="plot_genes.js"></script>
+<script src="plot_info.js"></script>
+<script src="jquery.min.js"></script>
+<style>
+
+svg {
+  shape-rendering: crispEdges;
+}
+
+body {
+  font: 10px sans-serif;
+}
+
+h2 {
+  margin-top: 1.5em;
+}
+
+.bar rect {
+  fill: steelblue;
+  shape-rendering: crispEdges;
+}
+
+.bar text {
+  fill: #fff;
+  font-size: 8pt;
+}
+
+.axis path, .axis line {
+  fill: none;
+  stroke: #000;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  font-size: 8pt;
+}
+
+.dot {
+  fill: steelblue;
+}
+
+table td.expand {
+  width: 99%
+}
+
+td a {
+  border-bottom: 1px dotted black;
+  text-decoration: none;
+  color: black;
+}
+
+td a:hover {
+  color: #DC143C
+}
+
+td {
+  padding: 5px 10px 5px 10px;
+  font-weight: bold;
+  font-size: 9pt;
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+  white-space: "nowrap";
+}
+
+table#legend td {
+  text-align: center;
+  vertical-align: text-top;
+}
+
+table#legend {
+  border: 1px solid black;
+  padding: 5px;
+  border-radius: 5px;
+}
+
+tr#tr_variants td {
+  font-size: 10pt;
+  font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+
+table th {
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: black;
+}
+
+.first-gene {
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: black;
+}
+
+.same-gene {
+  border-bottom-width: 1px;
+  border-bottom-style: dashed;
+  border-bottom-color: gainsboro;
+}
+
+.d3tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  font-size: 10pt;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 12pt;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+}
+
+/* Style northward tooltips differently */
+.d3tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+}
+
+</style>
+
+<script type="text/javascript">
+
+  function run_d3() { 
+    console.log("starting d3 execution")
+    
+    function isInt(n){
+      return typeof n== "number" && isFinite(n) && n%1===0;
+    }
+
+    function fixFloat(x) {
+      if (x === null) return x
+
+      if (isInt(x)) {
+        return x.toString()
+      }
+
+      var fmd = d3.format("0.2g")(x)
+
+      if (isNaN(fmd)) {
+        return x
+      } else {
+        return fmd
+      }
+    }
+
+    var margin = {
+      top: 10, 
+      right: 30, 
+      bottom: 30, 
+      left: 30
+    }
+    var width = 600 - margin.left - margin.right
+    var height = 300 - margin.top - margin.bottom
+
+    var x = d3.scale.linear()
+        .domain([0, 1])
+        .range([0, width]);
+    
+    console.log("starting to load data...")
+    var tsv_pheno = d3.tsv.parse(load_phenos())
+    var tsv_vars = d3.tsv.parse(load_variants())
+    var tsv_genes = d3.tsv.parse(load_genes())
+    console.log("finished loading data")
+    
+    var values = tsv_pheno.map(function(x) { return parseFloat(x.TRAIT) })
+    
+    var pheno_min = d3.min(values)
+    var pheno_max = d3.max(values)
+    var pheno_diff = pheno_max - pheno_min
+    
+    var x = d3.scale.linear()
+      .domain([pheno_min,pheno_max])
+      .range([0, width]);
+    
+    var scale_width = d3.scale.linear()
+      .domain([0,pheno_diff])
+      .range([0,width])
+    var data = d3.layout.histogram()
+      .bins(x.ticks(40))
+      (values);
+
+    var y = d3.scale.linear()
+        .domain([0, d3.max(data, function(d) { return d.y; })])
+        .range([height, 0]);
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+      .scale(y)
+      .orient("left");
+
+    var svg = d3.select("#histo")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+        
+    var bar = svg.selectAll(".bar")
+        .data(data)
+      .enter().append("g")
+        .attr("class", "bar")
+        .attr("transform", function(d) { return "translate(" + x(d.x) + "," + y(d.y) + ")"; });
+
+    bar.append("rect")
+        .attr("x", 1)
+        .attr("width", scale_width(data[0].dx) - 1)
+        .attr("height", function(d) { return height - y(d.y); });
+      
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis)
+        
+    svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    .append("text")
+      .attr("class", "label")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      .text("Count")
+    
+    var table_cols = [""].concat(d3.keys(tsv_genes[0]).reverse())
+    d3.select("#header")
+      .selectAll("td")
+      .data(table_cols)
+      .enter()
+      .insert("td",":first-child")
+      .style("border-bottom","1px solid black")
+      .text(function(d){return d})
+
+    <!-- The nbsp is for Firefox compatibility -->
+    d3.select("#header").insert("td",":first-child").style("border-bottom","1px solid black").html("&nbsp;");
+    
+    var tip = d3.tip()
+      .attr('class', 'd3tip')
+      .offset([-10, 0])
+      .html(function(d) {
+        return "<strong>Value: </strong><span style='color:red;'>" + fixFloat(d.TRAIT) + "</span><br/><strong>Person: </strong><span style='color:red'>" + d.IND + "</span>";
+      })
+    
+    var overall_mean_trait = d3.mean(values)
+    
+    var actual_cols = d3.keys(tsv_genes[0]);
+    var cols_before_variant = actual_cols.slice(0,actual_cols.indexOf("VARIANT"));
+    
+    tsv_genes.forEach(function(row,index) {
+      var trow = d3.select("#var_rows").append("tr"); 
+      var next_gene_same = tsv_genes[index + 1] !== undefined && row.GENE == tsv_genes[index + 1].GENE
+      var prev_gene_same = tsv_genes[index - 1] !== undefined && row.GENE == tsv_genes[index - 1].GENE
+      
+      if (!next_gene_same) {
+        var row_svg = trow.append("td").classed("first-gene",true).append("svg");
+      } else {
+        var row_svg = trow.append("td").classed("same-gene",true).append("svg");
+      }
+      
+      row_svg = row_svg.attr("width", width + margin.left + margin.right)
+        .attr("height", 20)
+        .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
+
+      row_svg.call(tip)
+        
+      var variant_data = tsv_vars.filter(function(d) { return d.VARIANT == row.VARIANT });
+      
+      <!-- What is the mean trait value for this variant?  -->
+      var mean_trait = d3.mean(variant_data.map(function(d) { return parseFloat(d.TRAIT) }))
+      if (mean_trait !== undefined) {
+        console.log("mean trait: ",mean_trait," x-trans: ",x(mean_trait));
+        row_svg.append("line").attr("x1",x(mean_trait)).attr("x2",x(mean_trait)).attr("y1",-10).attr("y2",10).attr("stroke-width",1).attr("stroke","green");
+      }
+      
+      <!-- Plot the overall mean trait value as well for reference.  -->
+      row_svg.append("line")
+        .attr("x1",x(overall_mean_trait))
+        .attr("x2",x(overall_mean_trait))
+        .attr("y1",-10).attr("y2",10)
+        .attr("stroke-width",1)
+        .attr("stroke","gray")
+        .attr("stroke-dasharray","2,2");
+      
+      <!-- Draw the hets first.  -->
+      var row_select = row_svg.selectAll("path");
+      var hets = variant_data.filter(function(d) { return d.RARE_COUNT == 1 })
+      row_select.data(hets)
+        .enter()
+        .append("path")
+        .attr("class", "het")
+        .style("fill","orange")
+        .attr('d', d3.svg.symbol().type("triangle-down").size(40))
+        .attr("transform", function(d) { return "translate(" + x(d.TRAIT) + "," + 0 + ")"; })
+        .on("mouseover",tip.show)
+        .on("mouseout",tip.hide)
+      
+      <!-- Now the rare homozygotes.  -->
+      var hom = variant_data.filter(function(d) { return d.RARE_COUNT == 2 })
+      row_select.data(hom)
+        .enter()
+        .append("path")
+        .attr("class", "hom")
+        .style("fill","red")
+        .attr('d', d3.svg.symbol().type("triangle-up").size(40))
+        .attr("transform", function(d) { return "translate(" + x(d.TRAIT) + "," + 0 + ")"; })
+        .on("mouseover",tip.show)
+        .on("mouseout",tip.hide)
+          
+      d3.values(row).forEach(function(x,i) {
+        var underline = next_gene_same ? "same-gene" : "first-gene";
+        var sel = trow.append("td")
+          .classed(underline,true)
+          .append("span")
+          .attr("style","white-space: nowrap;")
+        
+        <!-- Do we need to write this value at all?  -->
+        if (prev_gene_same && i < cols_before_variant.length) { 
+          return;
+        }
+        
+        <!-- Make a search URL for the gene (first element always.) Otherwise just fill in the field with text.  -->
+        if (i == 0) {
+          var search_url = "http://www.ncbi.nlm.nih.gov/gene?term=(isymb%5BPreferred%20Symbol%5D)%20AND%20Homo%20sapiens%5BOrganism%5D".replace("isymb",x)
+          sel.html("<a target='_blank' href='" + search_url + "'>" + x + "</a>")
+        } else {
+          sel.text(fixFloat(x))
+        }
+      })
+    })
+    
+    $("div.wait").hide()
+  }
+
+  $(window).load(function() {
+    <!-- Do plotting. -->
+    run_d3()
+
+    <!-- model_formula comes from plot_info.js -->
+    $("#model_formula").text(model_formula)
+  })
+  
+</script>
+
+</head>
+
+<body>
+
+<h2>Carriers of rare alleles for single variants contributing to significant gene-based tests</h2>
+
+<div style="text-align: center;">
+
+  <div class="wait" style="text-align: left;">
+    <h3>Rendering figure, please wait...</h3>
+  </div>
+
+<table id="var_rows" style="width: 98.5%;">
+  <tr>
+    <td>
+      <p id="model_formula" style="text-align: center"></p>
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <svg id="histo"></svg>
+    </td>
+    <td colspan=99 style="vertical-align: top;">
+      <div style="float: right; top: 5px; right: 5px;">
+        <table id="legend">
+          <tr>
+            <th>Symbol</th>
+            <th>Meaning</th>
+          <tr>
+          <tr>
+            <td style="text-align: center; vertical-align: middle;">
+              <svg width="50px" height="15px">
+                <g transform="translate(25,7.5)">
+                  <path class="hom" d="M0,-4.161791450287817L4.805622828269509,4.161791450287817 -4.805622828269509,4.161791450287817Z" style="fill: rgb(255, 0, 0);"></path>
+                </g>
+              </svg>
+            <td>Rare homozygote</td>
+          </tr>
+          <tr>
+            <td style="text-align: center; vertical-align: middle;">
+              <svg width="50px" height="15px">
+                <g transform="translate(25,7.5)">
+                  <path class="het" d="M0,4.161791450287817L4.805622828269509,-4.161791450287817 -4.805622828269509,-4.161791450287817Z" style="fill: rgb(255, 165, 0);"></path>
+                </g>
+              </svg>
+            <td>Heterozygote</td>
+          </tr>
+          <tr>
+            <td style="text-align: center; vertical-align: middle;">
+              <svg width="50px" height="15px">
+                <line x1="25" x2="25" y1="0" y2="15" stroke-width="1" stroke="gray" stroke-dasharray="2,2"></line>
+              </svg>
+            <td>Mean trait value (all samples)</td>
+          </tr>  
+          <tr>
+            <td style="text-align: center; vertical-align: middle;">
+              <svg width="50px" height="15px">
+                <line x1="25" x2="25" y1="0" y2="15" stroke-width="1" stroke="green"></line>
+              </svg>
+            <td>Mean trait value (variant carriers)</td>
+          </tr> 
+        </table>
+      </div>
+    </td>
+  </tr>
+  
+  <tr id="header">
+    <td class="expand"></td>
+  </tr>
+  
+</table>
+
+</div>
+
+<h2>QQ plots</h2>
+
+<table>
+	<tr>
+		<td style="text-align: center"><img src="qq.genes_passing.png"></td>
+		<td style="text-align: center"><img src="qq.genes_failing.png"></td>
+	<tr>
+	<tr>
+		<td style="text-align: center"><a href="qq.genes_passing.pdf">PDF</a></td>
+		<td style="text-align: center"><a href="qq.genes_failing.pdf">PDF</a></td>
+	</tr>
+</table>
+
+<h2>Manhattan plots</h2>
+
+<table>
+  <tr>
+    <td style="text-align: center"><img src="manhattan.genes_passing.png"></td>
+    <td style="text-align: center"><img src="manhattan.genes_failing.png"></td>
+  <tr>
+  <tr>
+    <td style="text-align: center"><a href="manhattan.genes_passing.pdf">PDF</a></td>
+    <td style="text-align: center"><a href="manhattan.genes_failing.pdf">PDF</a></td>
+  </tr>
+</table>
+
+</body>
+
+</html>

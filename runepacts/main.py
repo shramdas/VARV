@@ -1182,6 +1182,10 @@ def main():
 		for_plot_variants = pandas.merge(for_plot_variants,for_plot_pheno,on="IND",how="left")
 		df_to_js(for_plot_variants,"variants",os.path.join(html_dir,"plot_variants.js"),float_format="%0.3g",write_tab=True)
 
+		# Write out the model formula for the plotting HTML code.
+		with open(os.path.join(html_dir,"plot_info.js"),"w") as out:
+			print >> out, 'model_formula = "%s"' % aopts["MODEL"]
+
 		# Write out a summary of options given.
 		with open(aopts['OUTPREFIX'] + ".summary.txt","w") as summary_file:
 			print >> summary_file, "DATE\t%s" % time.strftime("%Y-%m-%d %H:%M:%S")
