@@ -92,7 +92,6 @@ def get_defaults():
 
 	defaults['INPUTDIR'] = None
 	defaults['VCFFILE'] = None
-	defaults['VCFDIR'] = None
 	defaults['FIELD'] = None
 	defaults['COVARIATES'] = []
 	defaults['PHENOTYPE'] = None
@@ -303,24 +302,16 @@ def read_config(filepath):
 				if not os.path.isdir(value):
 					die("Error: input directory does not exist: %s" % value)
 
-				# Assume this is the VCFDIR as well, unless we later encounter VCFFILE
-				# and it contains directories in its path
 				current["INPUTDIR"] = value
-				current["VCFDIR"] = value
 
 				continue
 
 			if key == "VCFFILE":
 				if '/' in value or '\\' in value:
 					check_file_exists(value)
-
-					vcf_dir, vcf_file = os.path.split(value)
-					current["VCFDIR"] = vcf_dir
 					current["VCFFILE"] = value
 				else:
-					current["VCFDIR"] = current["INPUTDIR"]
 					current["VCFFILE"] = os.path.join(current["INPUTDIR"],value)
-
 					check_file_exists(current["VCFFILE"])
 
 				continue

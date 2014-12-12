@@ -165,6 +165,25 @@ def epacts_no_extra(eid):
 
 	return "_".join(eid.split("_",2)[0:2])
 
+# Get the path to the current directory in "/net" style.
+def net_path(fpath,net_dir=None):
+	if not os.path.exists(fpath):
+		raise IOError, "File path does not exist: %s" % str(fpath)
+
+	if net_dir is None:
+		return fpath
+
+	cur = fpath
+
+	# Some people like me have screwed up home directories. Get rid of /exports.
+	cur = cur.replace("/exports","")
+
+	# Change / to /net/host.
+	if net_dir is not None:
+		cur = cur.replace("/",net_dir,1)
+
+	return cur
+
 def parse_epacts(v):
 	"""
 	Try to parse an EPACTS ID into components.
