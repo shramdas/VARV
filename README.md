@@ -36,9 +36,9 @@ Runepacts requires:
 
 To download, grab the tarball here:
 
-| Version | Date       | Size | URL                                                          |
-|---------|------------|------|--------------------------------------------------------------|
-| 0.1     | 12/11/2014 | 45K  | http://csg.sph.umich.edu/boehnke/runepacts/runepacts_0.1.tgz |
+| Version | Date       | Size | URL                                                                          |
+|---------|------------|------|------------------------------------------------------------------------------|
+| 0.1     | 12/12/2014 | 1.6M | https://github.com/welchr/runepacts/releases/download/v0.1/runepacts_0.1.tgz |
 
 To install, simply extract the tarball, and then execute the setup script:
 
