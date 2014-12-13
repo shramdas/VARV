@@ -29,8 +29,8 @@ from itertools import repeat, chain
 import functools as ft
 
 PROG_NAME = "RUNEPACTS"
-PROG_VERSION = "0.1"
-PROG_DATE = "12/10/2014"
+PROG_VERSION = "0.1.1"
+PROG_DATE = "12/12/2014"
 PROG_AUTHORS = [
 	"Shweta Ramdas (sramdas@umich.edu)",
 	"Ryan Welch (welchr@umich.edu)"
