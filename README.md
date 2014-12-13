@@ -34,11 +34,7 @@ Runepacts requires:
 * An internet connection during setup
 * An up to date version of Chrome or Firefox (for viewing the output report/visualizations)
 
-To download, grab the tarball here: 
-
-| Version | Date       | Size  | URL                                                                          |
-|---------|------------|-------|------------------------------------------------------------------------------|
-| 0.1     | 12/11/2014 | 1.6M  | https://github.com/welchr/runepacts/releases/download/v0.1/runepacts_0.1.tgz |
+To download, grab the tarball from the [Releases](https://github.com/welchr/runepacts/releases) page. 
 
 To install, simply extract the tarball, and then execute the setup script: 
 
