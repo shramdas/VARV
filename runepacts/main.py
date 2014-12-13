@@ -17,31 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #===============================================================================
 
-PROG_NAME = "RUNEPACTS"
-PROG_VERSION = "0.1"
-PROG_DATE = "12/10/2014"
-PROG_AUTHORS = [
-	"Shweta Ramdas (sramdas@umich.edu)",
-	"Ryan Welch (welchr@umich.edu)"
-]
-PROG_URL = "https://github.com/shramdas/runepacts"
-
-def bootstrap_lib(lib_path):
-	import os, sys
-	from glob import glob
-
-	exist_eggs = [os.path.basename(i) for i in sys.path];
-
-	sys.path.insert(1,lib_path);
-
-	for d in glob(os.path.join(lib_path,"*egg")):
-		if os.path.basename(d) in exist_eggs:
-			continue;
-		else:
-			sys.path.insert(1,d);
-
-bootstrap_lib("/net/snowwhite/home/welchr/lib/python2.7/site-packages");
-
 import os, sys, re, getopt, subprocess, gzip, numpy, time
 import operator, optparse, logging, pprint, signal
 import pandas
@@ -52,6 +27,15 @@ from runepacts.util import *
 from distutils.dir_util import mkpath
 from itertools import repeat, chain
 import functools as ft
+
+PROG_NAME = "RUNEPACTS"
+PROG_VERSION = "0.1"
+PROG_DATE = "12/10/2014"
+PROG_AUTHORS = [
+	"Shweta Ramdas (sramdas@umich.edu)",
+	"Ryan Welch (welchr@umich.edu)"
+]
+PROG_URL = "https://github.com/shramdas/runepacts"
 
 pandas.set_option('chained_assignment',None)
 pandas.set_option('display.max_colwidth',120)
