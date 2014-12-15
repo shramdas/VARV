@@ -29,7 +29,8 @@ Runepacts is a pipeline for automating many of the steps required for performing
 
 Runepacts requires: 
 
-* Python 2.7.x (untested and likely does not work with 3.x)
+* [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS)
+* Python 2.7.x (untested on / likely does not work with 3.x)
 * R 3.1 or greater
 * Tabix (available as a part of SAMtools, http://samtools.sourceforge.net/) located somewhere on your $PATH
 * An internet connection during setup
