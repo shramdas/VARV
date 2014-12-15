@@ -31,6 +31,7 @@ Runepacts requires:
 
 * Python 2.7.x (untested and likely does not work with 3.x)
 * R 3.1 or greater
+* Tabix (available as a part of SAMtools, http://samtools.sourceforge.net/) located somewhere on your $PATH
 * An internet connection during setup
 * An up to date version of Chrome or Firefox (for viewing the output report/visualizations)
 
