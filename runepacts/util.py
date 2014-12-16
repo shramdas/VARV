@@ -184,6 +184,21 @@ def net_path(fpath,net_dir=None):
 
 	return cur
 
+def net_cwd():
+	"""
+	Return the path to the current working directory as a /net/<host>/ path.
+	This is specific to (and only needed for) the CSG cluster environment.
+	"""
+
+	import socket
+	host = socket.gethostname()
+	host_path = "/net/%s" % host
+	cwd = os.getcwd()
+	cwd = cwd.replace("/exports","")
+	cwd = cwd.replace("/","",1)
+
+	return os.path.join(host_path,cwd)
+
 def parse_epacts(v):
 	"""
 	Try to parse an EPACTS ID into components.

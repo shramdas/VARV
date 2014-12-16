@@ -18,7 +18,7 @@
 #===============================================================================
 
 import os, sys, re, getopt, subprocess, gzip, numpy, time
-import operator, optparse, logging, pprint, signal
+import operator, optparse, logging, pprint, signal, shlex
 import pandas
 import pandas.computation.ops
 import runepacts
@@ -112,50 +112,6 @@ def get_defaults():
 	#defaults['MOSIX'] = '--mosix-nodes="\`/net/fantasia/home/gjun/bin/pick_mainnode\`"'
 
 	return defaults
-
-# def run_plots(options,phenotype,covariates,tests,pvalt):
-# 	log_key = gen_analysis_key(options)
-# 	info = logging.getLogger(log_key).info
-# 	warn = logging.getLogger(log_key).warning
-# 	debug = logging.getLogger(log_key).debug
-#
-# 	# These files must have been previously created by the pipeline.
-# 	required_for_plot = map(lambda x: options["OUTPREFIX"] + x,[".allvariants.txt",".pheno.ped",".summary.txt",".genes_passing_filters.txt"]);
-#
-# 	if all(map(os.path.isfile,required_for_plot)):
-# 		plot_loc = os.path.join(runepacts.__path__[0],"R/plots.R");
-# 		if len(covariates) > 0:
-# 			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} {covars} < {script}";
-# 			run_cmd = cmd.format(
-# 				out_prefix = options["OUTPREFIX"],
-# 				phenotype = phenotype,
-# 				tests = tests,
-# 				pval_thresh = str(pvalt),
-# 				covars = options['MODEL'].split('~')[1],
-# 				script = plot_loc
-# 			)
-#
-# 			run_bash(run_cmd)
-#
-# 		else:
-# 			cmd = "R --vanilla --slave --args NULL {phenotype} {out_prefix} {tests} {pval_thresh} NA < {script}"
-# 			run_cmd = cmd.format(
-# 				out_prefix = options["OUTPREFIX"],
-# 				phenotype = phenotype,
-# 				tests = tests,
-# 				pval_thresh = str(pvalt),
-# 				script = plot_loc
-# 			)
-#
-# 			run_bash(run_cmd)
-#
-# 		if _RUNEPACTS_DEBUG:
-# 			debug(run_cmd)
-#
-# 		info("Output written to: " + options['OUTPREFIX'] + '.topgenes.pdf')
-#
-# 	else:
-# 		warn("Skipping plot, could not find required files: \n%s" % "\n".join(required_for_plot))
 
 def run_plots(options,out_prefix,plot_prefix,phenotype):
 	log_key = gen_analysis_key(options)
@@ -382,13 +338,16 @@ def gen_analysis_key(an):
 
 	return hashlib.md5("".join([str(x) for x in an.itervalues()])).hexdigest()
 
-def main():
+def main(arg_string=None):
 	print_program_header()
 
 	op = optparse.OptionParser()
 	op.add_option("--plotonly",help="Only create the plot PDF, assuming you've already run the pipeline once.",default=False,action="store_true")
 
-	opts, args = op.parse_args()
+	if arg_string is None:
+		opts, args = op.parse_args()
+	else:
+		opts, args = op.parse_args(shlex.split(arg_string))
 
 	if len(args) == 0:
 		die("Error: must specify config file, e.g. runepacts.py config.cfg")
@@ -412,9 +371,16 @@ def main():
 		if len(tests) == 0:
 			die("Error: must specify at least 1 test for each PROCESS.")
 
-		outprefix_dir = os.path.split(aopts["OUTPREFIX"])[0]
+		outprefix = aopts["OUTPREFIX"]
+		if "NETCWD" in outprefix:
+			outprefix = re.sub("{{\s*NETCWD\s*}}",net_cwd(),outprefix)
+
+		outprefix_dir = os.path.split(outprefix)[0]
 		if not os.path.isdir(outprefix_dir):
+			print "Creating directory: %s" % outprefix_dir
 			mkpath(outprefix_dir)
+
+		print "Output directory: %s" % outprefix_dir
 
 		# A unique key for this particular analysis. Just makes it easier to setup a logger.
 		analysis_key = gen_analysis_key(aopts)
@@ -424,7 +390,7 @@ def main():
 
 		# Setup logging to file
 		ffmt = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-		fhandler = logging.FileHandler(aopts["OUTPREFIX"] + ".log")
+		fhandler = logging.FileHandler(outprefix + ".log")
 		fhandler.setFormatter(ffmt)
 		logger.addHandler(fhandler)
 
@@ -507,7 +473,7 @@ def main():
 				# Filter resulted in an empty PED file, we can't continue.
 				die("Filter '%s' on PED file resulted in an empty data set" % pfilter,logger)
 
-		pedfile.iloc[:,1].to_csv(aopts['OUTPREFIX'] + ".samples_to_keep.txt", sep="\t",index=False, na_rep='NA')
+		pedfile.iloc[:,1].to_csv(outprefix + ".samples_to_keep.txt", sep="\t",index=False, na_rep='NA')
 		keep_samples = pedfile.iloc[:,1]
 		if len(pedcolumns) > 0:
 			if len(covariates) > 0:
@@ -549,13 +515,13 @@ def main():
 			else:		# no dummy variable has to be added to the file
 				covar_cmd = covar_cmd + ' -cov ' + covariates[i] + ' '
 
-		pedfile.to_csv(aopts['OUTPREFIX'] + '.pheno.ped', sep="\t",index=False, na_rep='NA')
+		pedfile.to_csv(outprefix + '.pheno.ped', sep="\t",index=False, na_rep='NA')
 
 		# Create groupfile if one is not already given by the user
 		if aopts.get("GROUPFILE") is None:
 			logger.info("Creating groupfile...")
 
-			final_groupfile_name = aopts['OUTPREFIX'] + '.groupfile.txt'
+			final_groupfile_name = outprefix + '.groupfile.txt'
 
 			# No annotation file provided by the user, so we have to use epacts to create the groupfile
 			if aopts.get("ANNOTFILE") is None:
@@ -565,7 +531,7 @@ def main():
 					annot_cmd = "{epacts} anno -in {vcf} -out {out}".format(
 						epacts = epacts,
 						vcf = orig_vcf_path,
-						out = aopts['OUTPREFIX'] + '.anno.vcf.gz'
+						out = outprefix + '.anno.vcf.gz'
 					)
 
 					logger.debug(annot_cmd)
@@ -573,7 +539,7 @@ def main():
 
 					annot_cmd = "{epacts} make-group -vcf {vcf} -out {out} --format epacts {args}".format(
 						epacts = epacts,
-						vcf = aopts['OUTPREFIX'] + '.anno.vcf.gz',
+						vcf = outprefix + '.anno.vcf.gz',
 						out = final_groupfile_name,
 						args = EPACTS_MAKE_GROUP_ARGS
 					)
@@ -596,22 +562,22 @@ def main():
 						annot_cmd = "{epacts} anno -in {vcf} -out {out}".format(
 							epacts = epacts,
 							vcf = sep_vcf_fpath,
-							out = aopts['OUTPREFIX'] + '.anno.' + sep_vcf_name
+							out = outprefix + '.anno.' + sep_vcf_name
 						)
 						logger.debug(annot_cmd)
 						run_bash_vlevel(annot_cmd)
 
 						annot_cmd = "{epacts} make-group -vcf {vcf} -out {out} -format epacts {args}".format(
 							epacts = epacts,
-							vcf = aopts['OUTPREFIX'] + '.anno.' + sep_vcf_name,
-							out = aopts['OUTPREFIX'] + '.group.' + sep_vcf_name,
+							vcf = outprefix + '.anno.' + sep_vcf_name,
+							out = outprefix + '.group.' + sep_vcf_name,
 							args = EPACTS_MAKE_GROUP_ARGS
 						)
 						logger.debug(annot_cmd)
 						run_bash_vlevel(annot_cmd)
 
 						annot_cmd = "cat {0} >> {1}".format(
-							aopts['OUTPREFIX'] + '.group.' + sep_vcf_name,
+							outprefix + '.group.' + sep_vcf_name,
 							final_groupfile_name
 						)
 						logger.debug(annot_cmd)
@@ -703,8 +669,8 @@ def main():
 		# Sort (for easier glancing at)
 		tobed.sort(["CHR","START"],inplace=True)
 
-		gene_bed = aopts['OUTPREFIX'] + '.genes_to_keep.bed'
-		gene_vcf = aopts['OUTPREFIX'] + '.genes_to_keep.vcf'
+		gene_bed = outprefix + '.genes_to_keep.bed'
+		gene_vcf = outprefix + '.genes_to_keep.vcf'
 
 		tobed.to_csv(gene_bed,sep="\t",index=False,header=False)
 
@@ -782,13 +748,13 @@ def main():
 
 				# This is the original VCF file without reduction to a specific set of genes (should estimate from all variants)
 				vcf_for_kinship = orig_vcf_path
-				final_kinship_file = aopts['OUTPREFIX'] + '.kinf'
+				final_kinship_file = outprefix + '.kinf'
 
 				make_kin_cmd = "{epacts} make-kin -vcf {vcf} {sepchr} -ped {ped} -out {out} {filters} -run 1"
 				make_kin_cmd = make_kin_cmd.format(
 					epacts = epacts,
 					vcf = vcf_for_kinship,
-					ped = aopts['OUTPREFIX'] + '.pheno.ped',
+					ped = outprefix + '.pheno.ped',
 					out = final_kinship_file,
 					sepchr = "-sepchr" if aopts["SEPCHR"] else "",
 					filters = EPACTS_KIN_FILTER_ARGS
@@ -810,7 +776,7 @@ def main():
 		epacts_cmd = epacts_cmd.format(
 			epacts_loc = epacts,
 			vcf = vcf_for_tests,
-			ped = aopts['OUTPREFIX'] + '.pheno.ped',
+			ped = outprefix + '.pheno.ped',
 			pheno = phenotype,
 			covar_cmd = covar_cmd,
 			test = aopts['SINGLEMARKERTEST'],
@@ -819,7 +785,7 @@ def main():
 			marker_max_maf = max_maf,
 			marker_min_mac = min_mac,
 			field = field,
-			out = aopts['OUTPREFIX'] + '.singlemarker',
+			out = outprefix + '.singlemarker',
 			njobs = aopts["NJOBS"],
 			mosix = aopts.get("MOSIX",""),
 			remlf = "-remlf %s" % aopts["REMLFILE"] if aopts.get("REMLFILE") is not None else ""
@@ -829,7 +795,7 @@ def main():
 		run_bash_vlevel(epacts_cmd)
 
 		# Read in single marker results.
-		single_marker_results = pandas.read_table(aopts['OUTPREFIX'] + '.singlemarker.epacts.gz',compression="gzip")
+		single_marker_results = pandas.read_table(outprefix + '.singlemarker.epacts.gz',compression="gzip")
 		single_marker_results["MARKER_ID"] = single_marker_results["MARKER_ID"].map(epacts_no_extra)
 		single_marker_results = single_marker_results["MARKER_ID PVALUE BETA NS AC MAF".split()]
 		single_marker_results["MAC"] = single_marker_results.apply(lambda x: min(2 * x["NS"] - x["AC"],x["AC"]),axis=1)
@@ -844,7 +810,7 @@ def main():
 
 		# Get all markers belonging to a gene
 		groupfile = open(final_groupfile_name)
-		out_groupfile = aopts["OUTPREFIX"] + ".groupfile.filtered.txt"
+		out_groupfile = outprefix + ".groupfile.filtered.txt"
 		newgroupfile = open(out_groupfile, 'w')
 		marker_list_for_genes = dict()
 		genes_passing_filters = set()
@@ -887,7 +853,7 @@ def main():
 				marker_list_for_genes[genename] = lsplit
 
 		# Write out the genes passing filters
-		with open(aopts['OUTPREFIX'] + '.genes_passing_filters.txt','w') as out:
+		with open(outprefix + '.genes_passing_filters.txt','w') as out:
 			print >> out, "GENE"
 			for gene in genes_passing_filters:
 				print >> out, gene
@@ -911,9 +877,9 @@ def main():
 				test = avalue,
 				vcf = vcf_for_tests,
 				pheno = phenotype,
-				ped = aopts['OUTPREFIX'] + '.pheno.ped',
+				ped = outprefix + '.pheno.ped',
 				groupfile = out_groupfile,
-				out = aopts['OUTPREFIX'] + '.' + avalue,
+				out = outprefix + '.' + avalue,
 				min_maf = min_maf,
 				min_mac = min_mac,
 				max_maf = max_maf,
@@ -935,7 +901,7 @@ def main():
 		all_grp_test_results = None
 		for grp_i, grp_test in enumerate(tests):
 			grp_test_name = grp_test.split("=")[1]
-			grp_results = pandas.read_table(aopts['OUTPREFIX'] + '.' + grp_test_name + '.epacts',sep="\t",header=0)	# reading in output file for test
+			grp_results = pandas.read_table(outprefix + '.' + grp_test_name + '.epacts',sep="\t",header=0)	# reading in output file for test
 
 			if 'NUM_PASS_VARS' in grp_results.columns:
 				grp_results.rename(columns={'NUM_PASS_VARS':'PASS_MARKERS'}, inplace=True)
@@ -984,12 +950,12 @@ def main():
 		for_sig_marker_bed["END"] = for_sig_marker_bed["POS"] + 1
 		for_sig_marker_bed.sort(["CHROM","POS"],inplace=True)
 
-		sig_genes_bed = aopts['OUTPREFIX'] + '.variants_from_sig_genes.txt'
+		sig_genes_bed = outprefix + '.variants_from_sig_genes.txt'
 		marker_names_bed = for_sig_marker_bed["CHROM START END".split()]
 		marker_names_bed.to_csv(sig_genes_bed,sep="\t",index=False,index_label=False,header=False)
 
 		# Create a VCF file with only the variants from within significant genes
-		sig_genes_vcf = aopts['OUTPREFIX'] + '.variants_from_sig_genes.recode.vcf'
+		sig_genes_vcf = outprefix + '.variants_from_sig_genes.recode.vcf'
 
 		try:
 			os.remove(sig_genes_vcf)
@@ -1134,10 +1100,10 @@ def main():
 
 			return tables
 
-		gt_tables = genotype_trait_tables(gene_final_filtered.GENE.unique(),for_melt,pedfile,phenotype,marker_list_for_genes,aopts["OUTPREFIX"])
+		gt_tables = genotype_trait_tables(gene_final_filtered.GENE.unique(),for_melt,pedfile,phenotype,marker_list_for_genes,outprefix)
 
 		# Where should we write the top genes plot?
-		html_dir = os.path.join(aopts["OUTPREFIX"] + ".plots/")
+		html_dir = os.path.join(outprefix + ".plots/")
 		mkpath(html_dir)
 
 		# Write the supporting files (HTML and JS) for the plot.
@@ -1156,7 +1122,7 @@ def main():
 		for_qq_manhattan = gene_final["GENE GENE_FILTERED VARIANT SV.P".split()]
 		for_qq_manhattan["CHROM"] = for_qq_manhattan.VARIANT.map(lambda x: parse_epacts(x)[0])
 		for_qq_manhattan["POS"] = for_qq_manhattan.VARIANT.map(lambda x: parse_epacts(x)[1])
-		for_qq_manhattan.to_csv(os.path.join(aopts["OUTPREFIX"] + ".single_variant_combined.txt"),sep="\t",index=False,na_rep="NA")
+		for_qq_manhattan.to_csv(os.path.join(outprefix + ".single_variant_combined.txt"),sep="\t",index=False,na_rep="NA")
 
 		# Write out variant data for plotting.
 		for_plot_variants = add_rare_count(vcf_sig_gene_melted,filter=0)
@@ -1171,7 +1137,7 @@ def main():
 			print >> out, 'model_formula = "%s"' % aopts["MODEL"]
 
 		# Write out a summary of options given.
-		with open(aopts['OUTPREFIX'] + ".summary.txt","w") as summary_file:
+		with open(outprefix + ".summary.txt","w") as summary_file:
 			print >> summary_file, "DATE\t%s" % time.strftime("%Y-%m-%d %H:%M:%S")
 
 			for k, v in aopts.iteritems():
@@ -1183,13 +1149,15 @@ def main():
 				print >> summary_file, "%s\t%s" % (k,v)
 
 		# Create PDFs of plots.
-		run_plots(aopts,aopts["OUTPREFIX"],html_dir,phenotype)
+		run_plots(aopts,outprefix,html_dir,phenotype)
 
 		# from IPython.core.debugger import Tracer
 		# debug = Tracer()
 		# debug()
 
 		logger.info("Completed @ %s" % time.strftime("%H:%m:%S %Y-%M-%d"))
+
+		return opts, args
 
 if __name__ == "__main__":
 	main()
