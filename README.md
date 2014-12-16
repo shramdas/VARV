@@ -95,9 +95,6 @@ ANNOTFILE /net/snowwhite/home/welchr/projects/runepacts/tests/omni_exchip.hg19.v
 # This can be omitted, in which case, no annotations will be shown for variants in the output. 
 ANNOTCOLUMNS	vepFUNC
 
-# If you wish to restrict analysis to only a few genes, you can list them here. 
-GENELIST LIPG,LCAT,FADS1
-
 # Specify a model here for analysis. The usual R type of formula should be used. 
 # For example: PC ~ AGE + BMI, or just PC if no covariates are needed. 
 MODEL	PC
@@ -106,6 +103,11 @@ MODEL	PC
 # Set to 1 to see everything, but this may cause the plotting output to be overwhelming. 
 # If not specified, the default is 1e-4. 
 PVALUETHRESHOLD	1
+
+# If you wish to restrict analysis to only a few genes, you can list them here. 
+# Note that you'll likely want to set PVALUETHRESHOLD to 1 (as above) to be sure
+# you get output for all of the genes listed, regardless of their significance. 
+GENELIST LIPG,LCAT,FADS1
 
 # Output directory + prefix for output files. 
 OUTPREFIX	/net/snowwhite/home/welchr/projects/runepacts/tests/testcfg/blah
