@@ -104,6 +104,7 @@ def get_defaults():
 	defaults['MIN_MAC'] = 1
 	defaults['MINVARS'] = 2
 	defaults['EPACTS'] = 'epacts'
+	defaults['TABIX'] = 'tabix'
 	defaults['EPACTSDIR'] = None
 	defaults['EPACTSCMD'] = ''
 	defaults['NJOBS'] = 1
@@ -305,6 +306,15 @@ def read_config(filepath):
 			if key == "EPACTSDIR":
 				current["EPACTS"] = os.path.join(value,"epacts")
 
+			if key == "TABIX":
+				tb_path, tb_exe = os.path.split(value)
+				if tb_path == '':
+					if which(tb_exe) is None:
+						die("Error: could not find tabix on path, must specify full path to tabix executable using 'TABIX' in config")
+				else:
+					if not os.path.isfile(value):
+						die("Error: could not find tabix as specified by: %s, must specify full path or simply 'tabix' if it is on your PATH" % value)
+
 			if key == "SEPCHR":
 				value = True
 
@@ -411,6 +421,7 @@ def main(arg_string=None):
 
 		orig_vcf_path = aopts["VCFFILE"]
 		epacts = aopts["EPACTS"]
+		tabix = aopts["TABIX"]
 		pedcolumns = aopts["PEDCOLUMNS"]
 		user_cmd = aopts.get("EPACTSCMD","")
 		field = '-field %s' % aopts["FIELD"] if aopts.get("FIELD") is not None else ' '
@@ -437,14 +448,14 @@ def main(arg_string=None):
 				if os.path.isfile(f + ".tbi"):
 					continue
 
-				tabix_cmd = "tabix -p vcf %s" % f
+				tabix_cmd = "%s -p vcf %s" % (tabix,f)
 				logger.debug(tabix_cmd)
 				run_bash_vlevel(tabix_cmd)
 
 		elif not os.path.isfile(orig_vcf_path + '.tbi'):
 			logger.info("Indexing VCF...")
 
-			tabix_command = 'tabix -p vcf -f ' + orig_vcf_path
+			tabix_command = '%s -p vcf -f %s' % (tabix,orig_vcf_path)
 			logger.debug(tabix_command)
 			run_bash_vlevel(tabix_command)
 
@@ -678,7 +689,8 @@ def main(arg_string=None):
 
 		if not aopts["SEPCHR"]:
 			# Extract the positions from the bedfile and create a separate vcf
-			tabixcommand = "tabix -h -B {vcf} {bed} | bgzip -c >| {out}".format(
+			tabixcommand = "{tabix} -h -B {vcf} {bed} | bgzip -c >| {out}".format(
+				tabix = tabix,
 				vcf = orig_vcf_path,
 				bed = gene_bed,
 				out = gene_vcf + ".gz"
@@ -686,7 +698,7 @@ def main(arg_string=None):
 			logger.debug(tabixcommand)
 			run_bash_vlevel(tabixcommand)
 
-			tabixcommand = 'tabix -p vcf -f ' + gene_vcf + ".gz"
+			tabixcommand = "%s -p vcf -f %s" % (tabix,gene_vcf + ".gz")
 			logger.debug(tabixcommand)
 			run_bash_vlevel(tabixcommand)
 
@@ -696,7 +708,8 @@ def main(arg_string=None):
 				if first:
 					# Grab VCF header. Assume the VCF header for the first chromosome VCF is suitable for the remaining
 					# separated VCF files.
-					tabixcommand = "tabix -H {vcf} > {out}".format(
+					tabixcommand = "{tabix} -H {vcf} > {out}".format(
+						tabix = tabix,
 						vcf = orig_vcf_path,
 						out = gene_vcf
 					)
@@ -706,7 +719,8 @@ def main(arg_string=None):
 					first = False
 
 				# Extract the positions from the bedfile and create a separate vcf
-				tabixcommand = "tabix -B {vcf} {bed} >> {out}".format(
+				tabixcommand = "{tabix} -B {vcf} {bed} >> {out}".format(
+					tabix = tabix,
 					vcf = vcf,
 					bed = gene_bed,
 					out = gene_vcf
@@ -721,7 +735,7 @@ def main(arg_string=None):
 			logger.debug(bgzip_cmd)
 			run_bash_vlevel(bgzip_cmd)
 
-			tabixcommand = 'tabix -p vcf -f ' + gene_vcf + ".gz"
+			tabixcommand = "%s -p vcf -f %s" % (tabix,gene_vcf + ".gz")
 			logger.debug(tabixcommand)
 			run_bash_vlevel(tabixcommand)
 
@@ -963,7 +977,8 @@ def main(arg_string=None):
 			pass
 
 		# Extract variants within significant genes only and write them to a VCF
-		tabix_cmd = "tabix -B -h {vcf} {bed} >> {outvcf}".format(
+		tabix_cmd = "{tabix} -B -h {vcf} {bed} >> {outvcf}".format(
+			tabix = tabix,
 			vcf = vcf_for_tests,
 			bed = sig_genes_bed,
 			outvcf = sig_genes_vcf
