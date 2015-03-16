@@ -69,6 +69,9 @@ Below is an example of a config file, along with comments describing each of the
 The config file is whitespace delimited, so the arguments to each option must not contain spaces. 
 
 ```
+# Location of tabix. Can just be "tabix" if it exists on your path. 
+TABIX tabix
+
 # Location of EPACTS. 
 EPACTSDIR	/net/fantasia/home/hmkang/bin/epactsRelease/bin
 
