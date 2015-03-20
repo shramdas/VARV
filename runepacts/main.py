@@ -689,7 +689,7 @@ def main(arg_string=None):
 
 		if not aopts["SEPCHR"]:
 			# Extract the positions from the bedfile and create a separate vcf
-			tabixcommand = "{tabix} -h -B {vcf} {bed} | bgzip -c >| {out}".format(
+			tabixcommand = "{tabix} -h -R {bed} {vcf} | bgzip -c >| {out}".format(
 				tabix = tabix,
 				vcf = orig_vcf_path,
 				bed = gene_bed,
@@ -719,7 +719,7 @@ def main(arg_string=None):
 					first = False
 
 				# Extract the positions from the bedfile and create a separate vcf
-				tabixcommand = "{tabix} -B {vcf} {bed} >> {out}".format(
+				tabixcommand = "{tabix} -R {bed} {vcf} >> {out}".format(
 					tabix = tabix,
 					vcf = vcf,
 					bed = gene_bed,
@@ -745,6 +745,14 @@ def main(arg_string=None):
 				pass
 
 		vcf_for_tests = gene_vcf + ".gz"
+
+		# Do we need to drop samples from the VCF as well?
+		vcf_samples = set(vcf_get_header(vcf_for_tests)[9:]).difference(keep_samples)
+		if len(vcf_samples) > 0:
+			logger.info("Reducing samples in VCF to match PED file...")
+
+			# TODO: fix bgzip pathing here (and everywhere else)
+			vcf_filter_samples(vcf_for_tests,keep_samples,tabix)
 
 		# Do we need a kinship matrix?
 		need_kinship_group = sets_overlap(tests,KINSHIP_TESTS)
@@ -977,7 +985,7 @@ def main(arg_string=None):
 			pass
 
 		# Extract variants within significant genes only and write them to a VCF
-		tabix_cmd = "{tabix} -B -h {vcf} {bed} >> {outvcf}".format(
+		tabix_cmd = "{tabix} -h -R {bed} {vcf} >> {outvcf}".format(
 			tabix = tabix,
 			vcf = vcf_for_tests,
 			bed = sig_genes_bed,

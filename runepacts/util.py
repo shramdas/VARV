@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import sys, os, subprocess, gzip, signal, pprint, re, base64, shutil
+import sys, os, subprocess, gzip, signal, pprint, re, base64, shutil, tempfile
 import numpy as np
 import pandas
 import pandas.computation
@@ -79,7 +79,15 @@ def add_rare_count(dframe,marker_col="MARKER_ID",geno_col="GENOTYPE",count_col="
 	results = []
 	for index, df in dframe.groupby(marker_col):
 		# Find the rarest allele
-		rare_al, rare_total_count = Counter("".join(df[geno_col]).replace("/","")).most_common()[-1]
+		counter = Counter("".join(df[geno_col]).replace("/",""))
+		rare_al, rare_total_count = counter.most_common()[-1]
+
+		# Is it mono-allelic?
+		if len(counter) <= 1:
+			# This variant is monomorphic, so we don't want to count the only allele
+			# as the rare allele.
+			# Set the rare allele to -1, this way it will not be counted.
+			rare_al = "-1"
 
 		# Add in a column counting the number of rare alleles per person.
 		df[count_col] = df[geno_col].str.count(rare_al)
@@ -314,6 +322,54 @@ def vcf_pandas_load(vcf,*args,**kwargs):
 	df = pandas.read_table(vcf,sep="\t",compression=comp,skiprows=skip,*args,**kwargs);
 
 	return df;
+
+def vcf_filter_samples(vcf_file,samples,tabix="tabix",bgzip="bgzip"):
+	# Figure out which columns/samples to keep.
+	header = vcf_get_header(vcf_file)
+	cols = range(0,9) + [header.index(x) for x in samples]
+
+	if vcf_file.endswith(".gz"):
+		f_in = gzip.open(vcf_file)
+	else:
+		f_in = open(vcf_file)
+
+	f_out = tempfile.NamedTemporaryFile(dir=os.getcwd(),delete=False)
+
+	with f_in, f_out:
+		for vline in f_in:
+			if vline.startswith("##"):
+				f_out.write(vline)
+				continue
+
+			if vline.startswith("#"):
+				hsplit = vline.split("\t")
+				hsplit[-1] = hsplit[-1].rstrip()
+
+				hsplit = [hsplit[x] for x in cols]
+				print >> f_out, "\t".join(hsplit)
+				continue
+
+			ls = vline.split("\t")
+			ls[-1] = ls[-1].rstrip()
+
+			ls = [ls[c] for c in cols]
+			print >> f_out, "\t".join(ls)
+
+	if vcf_file.endswith(".gz"):
+		bgzip_cmd = "{bgzip} -c {infile} >| {out}".format(
+			bgzip = bgzip,
+			infile = f_out.name,
+			out = vcf_file
+		)
+		run_bash(bgzip_cmd,verbose=True)
+
+		tabix_cmd = "{tabix} -p vcf -f {vcf}".format(
+			tabix = tabix,
+			vcf = vcf_file
+		)
+		run_bash(tabix_cmd,verbose=True)
+
+	os.remove(f_out.name)
 
 def sets_overlap(s1,s2):
 	"""
