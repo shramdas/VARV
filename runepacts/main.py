@@ -562,7 +562,7 @@ def main(arg_string=None):
 					sep_vcfs = match_sepchr_vcfs(aopts["VCFFILE"])
 
 					try:
-						os.remove(final_groupfile_name)
+						safe_delete_file(final_groupfile_name)
 					except:
 						pass
 
@@ -740,7 +740,7 @@ def main(arg_string=None):
 			run_bash_vlevel(tabixcommand)
 
 			try:
-				os.remove(gene_vcf)
+				safe_delete_file(gene_vcf)
 			except:
 				pass
 
@@ -980,7 +980,7 @@ def main(arg_string=None):
 		sig_genes_vcf = outprefix + '.variants_from_sig_genes.recode.vcf'
 
 		try:
-			os.remove(sig_genes_vcf)
+			safe_delete_file(sig_genes_vcf)
 		except:
 			pass
 

@@ -369,7 +369,7 @@ def vcf_filter_samples(vcf_file,samples,tabix="tabix",bgzip="bgzip"):
 		)
 		run_bash(tabix_cmd,verbose=True)
 
-	os.remove(f_out.name)
+	safe_delete_file(f_out.name)
 
 def sets_overlap(s1,s2):
 	"""
@@ -381,6 +381,20 @@ def sets_overlap(s1,s2):
 
 	return len(set(s1).intersection(s2)) > 0
 
+def safe_delete_file(fpath):
+	if "*" in fpath:
+		raise Exception, "Error: tried to delete file with glob character '*' in it"
+
+	if os.path.isdir(fpath):
+		raise Exception, "Error: tried to use safe file deletion on a directory"
+
+	try:
+		os.remove(fpath)
+	except OSError, e:
+		if e.errno == 2:
+			pass
+		else:
+			raise
 
 def which(cmd, mode=os.F_OK | os.X_OK, path=None):
 	"""
