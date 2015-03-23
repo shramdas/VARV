@@ -3,7 +3,7 @@ import sys, os, subprocess, gzip, signal, pprint, re, base64, shutil, tempfile
 import numpy as np
 import pandas
 import pandas.computation
-import runepacts
+import varv
 from collections import Counter
 
 def copy_html_template(out_dir):
@@ -15,7 +15,7 @@ def copy_html_template(out_dir):
 	:return: None
 	"""
 
-	data_dir = os.path.join(runepacts.__path__[0],"data/")
+	data_dir = os.path.join(varv.__path__[0],"data/")
 
 	# Copy the required javascript files to the outpath.
 	files = os.listdir(data_dir)

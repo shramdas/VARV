@@ -2,12 +2,12 @@
 
 # Copyright (C) 2014 Shweta Ramdas, Ryan Welch, The University of Michigan
 #
-# runepacts is free software: you can redistribute it and/or modify
+# VARV is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# runepacts is distributed in the hope that it will be useful,
+# VARV is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -21,9 +21,9 @@ import os.path as path
 # Path to this script
 this_dir = path.dirname(path.realpath(sys.argv[0]))
 
-# Push runepacts source onto the path
-runepacts_dir = path.join(this_dir,"..")
-sys.path.insert(0,runepacts_dir);
+# Push varv source onto the path
+varv_dir = path.join(this_dir,"..")
+sys.path.insert(0,varv_dir);
 
 # Check that the virtualenv exists
 env_dir = path.join(this_dir,"../env")
@@ -35,7 +35,7 @@ if not os.path.isfile(activate_this):
 # Push the virtualenv onto the path
 execfile(activate_this, dict(__file__=activate_this))
 
-from runepacts.main import main
+from varv.main import main
 
 main();
 

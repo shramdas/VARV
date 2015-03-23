@@ -2,12 +2,12 @@
 
 # Copyright (C) 2014 Shweta Ramdas, Ryan Welch, The University of Michigan
 #
-# runepacts is free software: you can redistribute it and/or modify
+# VARV is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# runepacts is distributed in the hope that it will be useful,
+# VARV is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -25,7 +25,7 @@ root_dir = path.join(this_dir,"..")
 # Create the virtualenv
 # The virtualenv script automatically installs the required packages
 env_dir = path.join(this_dir,"../env")
-env_script = path.join(this_dir,"virtualenv-runepacts.py")
+env_script = path.join(this_dir,"virtualenv-varv.py")
 env_cmd = "%s %s" % (env_script,env_dir)
 os.system(env_cmd)
 
@@ -46,7 +46,7 @@ activate_this = path.join(env_dir,'bin/activate_this.py')
 
 if not os.path.isfile(activate_this):
   sys.exit("Error: no virtualenv found! Please contact the developer with any errors logged to your "
-           "console at: https://github.com/welchr/runepacts/issues")
+           "console at: https://github.com/shramdas/varv/issues")
 
 # Push the virtualenv onto the path
 execfile(activate_this,dict(__file__=activate_this))
@@ -55,6 +55,6 @@ try:
   import pandas
 except:
   print >> sys.stderr, "Error: tried to import pandas as a test, but failed. Please contact the developer with " \
-                       "any errors logged to your console at: https://github.com/welchr/runepacts/issues"
+                       "any errors logged to your console at: https://github.com/shramdas/varv/issues"
 
   raise

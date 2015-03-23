@@ -21,26 +21,26 @@ import os, sys, re, getopt, subprocess, gzip, numpy, time
 import operator, optparse, logging, pprint, signal, shlex
 import pandas
 import pandas.computation.ops
-import runepacts
+import varv
 from copy import deepcopy
-from runepacts.util import *
+from varv.util import *
 from distutils.dir_util import mkpath
 from itertools import repeat, chain
 import functools as ft
 
-PROG_NAME = "RUNEPACTS"
+PROG_NAME = "VARV"
 PROG_VERSION = "0.1.1"
 PROG_DATE = "12/12/2014"
 PROG_AUTHORS = [
 	"Shweta Ramdas (sramdas@umich.edu)",
 	"Ryan Welch (welchr@umich.edu)"
 ]
-PROG_URL = "https://github.com/shramdas/runepacts"
+PROG_URL = "https://github.com/shramdas/varv"
 
 pandas.set_option('chained_assignment',None)
 pandas.set_option('display.max_colwidth',120)
 
-_RUNEPACTS_DEBUG = False
+_VARV_DEBUG = False
 
 EPACTS_KIN_FILTER_ARGS = "-min-maf 0.01 -min-callrate 0.95"
 EPACTS_MAKE_GROUP_ARGS = "-nonsyn"
@@ -120,13 +120,13 @@ def run_plots(options,out_prefix,plot_prefix,phenotype):
 	warn = logging.getLogger(log_key).warning
 	debug = logging.getLogger(log_key).debug
 
-	b_verbose = _RUNEPACTS_DEBUG or options["VERBOSE"]
+	b_verbose = _VARV_DEBUG or options["VERBOSE"]
 
 	# These files must have been previously created by the pipeline.
 	required_for_plot = map(lambda x: out_prefix + x,[".single_variant_combined.txt"]);
 
 	if all(map(os.path.isfile,required_for_plot)):
-		plot_loc = os.path.join(runepacts.__path__[0],"R/plots.R");
+		plot_loc = os.path.join(varv.__path__[0],"R/plots.R");
 
 		cmd = "R --vanilla --slave --args {phenotype} {out_prefix} {plot_prefix} < {script}";
 		run_cmd = cmd.format(
@@ -360,7 +360,7 @@ def main(arg_string=None):
 		opts, args = op.parse_args(shlex.split(arg_string))
 
 	if len(args) == 0:
-		die("Error: must specify config file, e.g. runepacts.py config.cfg")
+		die("Error: must specify config file, e.g. varv config.cfg")
 
 	if not os.path.isfile(args[0]):
 		die("Error: config file does not exist: %s" % args[0])
@@ -372,7 +372,7 @@ def main(arg_string=None):
 	# commands.
 	for aopts in analyses:
 		tests = aopts["TEST"]
-		b_verbose = aopts["VERBOSE"] or _RUNEPACTS_DEBUG
+		b_verbose = aopts["VERBOSE"] or _VARV_DEBUG
 
 		# Freeze the verbose argument of run_bash to be dependent on whether
 		# we're in debug or verbose mode.

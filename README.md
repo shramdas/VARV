@@ -1,4 +1,4 @@
-# Runepacts
+# VARV
 
 Authors:
 
@@ -23,11 +23,11 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 
 ## Synopsis
 
-Runepacts is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). 
+VARV is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). 
 
 ## Installation
 
-Runepacts requires: 
+VARV requires: 
 
 * [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS)
 * Python 2.7.x (untested on / likely does not work with 3.x)
@@ -36,30 +36,30 @@ Runepacts requires:
 * An internet connection during setup
 * An up to date version of Chrome or Firefox (for viewing the output report/visualizations)
 
-To download, grab the tarball from the [Releases](https://github.com/welchr/runepacts/releases) page. 
+To download, grab the tarball from the [Releases](https://github.com/shramdas/varv/releases) page. 
 
 To install, simply extract the tarball, and then execute the setup script: 
 
 ```bash
-tar zxf runepacts.tar.gz 
-cd runepacts/bin/
+tar zxf varv.tar.gz 
+cd varv/bin/
 python setup.py 
 ```
 
-The setup script will attempt to install a number of required python packages into a virtualenv located in `runepacts/env`. This requires internet access on port 443 for SSL traffic. 
+The setup script will attempt to install a number of required python packages into a virtualenv located in `varv/env`. This requires internet access on port 443 for SSL traffic. 
 
 ## Usage 
 
-The main program is located in `bin/runepacts` under the extracted directory. To run this without needing to directly specify it, you can create a symbolic link to it from somewhere accessible on your `PATH`, usually something like: 
+The main program is located in `bin/varv` under the extracted directory. To run this without needing to directly specify it, you can create a symbolic link to it from somewhere accessible on your `PATH`, usually something like: 
 
 ```
-sudo ln -s -t /usr/local/bin /path/to/runepacts_dir/bin/runepacts
+sudo ln -s -t /usr/local/bin /path/to/varv_dir/bin/varv
 ```
 
 Then you can invoke the program on a configuration file like so: 
 
 ```
-runepacts your_config.cfg
+varv your_config.cfg
 ```
 
 ## Configuration
@@ -92,7 +92,7 @@ KINSHIPFILE	/net/snowwhite/home/aujackso/METSIM/OMNI_Express/Geno/metsim_omni.ki
 
 # Annotations for variants. This can be used for automatically generating a group/mask file, or for showing annotations 
 # in resulting output files. 
-ANNOTFILE /net/snowwhite/home/welchr/projects/runepacts/tests/omni_exchip.hg19.vep.annotation.gz
+ANNOTFILE /net/snowwhite/home/welchr/projects/varv/tests/omni_exchip.hg19.vep.annotation.gz
 
 # Which columns from the annotation file do we care about showing in the output? 
 # This can be omitted, in which case, no annotations will be shown for variants in the output. 
@@ -113,7 +113,7 @@ PVALUETHRESHOLD	1
 GENELIST LIPG,LCAT,FADS1
 
 # Output directory + prefix for output files. 
-OUTPREFIX	/net/snowwhite/home/welchr/projects/runepacts/tests/testcfg/blah
+OUTPREFIX	/net/snowwhite/home/welchr/projects/varv/tests/testcfg/blah
 
 # Group file specifying the mapping from group names (genes) to sets of variants. 
 # If this is omitted, it will be generated automatically. 
@@ -320,8 +320,8 @@ The manhattan plots show single variant association statistics.
 
 Copyright (C) 2014 Shweta Ramdas, Ryan Welch, The University of Michigan
 
-Runepacts is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+VARV is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
-Runepacts is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+VARV is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with this program. If not, see http://www.gnu.org/licenses/.
