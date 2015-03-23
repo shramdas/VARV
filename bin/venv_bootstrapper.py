@@ -36,5 +36,5 @@ def after_install(options, home_dir):
 
 """))
 
-f = open('virtualenv-runepacts.py', 'w').write(output)
+f = open('virtualenv-varv.py', 'w').write(output)
 
