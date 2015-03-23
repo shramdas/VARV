@@ -1850,6 +1850,9 @@ def after_install(options, home_dir):
     cmd = "%s install -I pandas" % pip
     subprocess.call(shlex.split(cmd))
 
+    cmd = "%s install -I numexpr" % pip
+    subprocess.call(shlex.split(cmd))
+
 
 
 def convert(s):
