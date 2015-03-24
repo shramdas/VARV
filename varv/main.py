@@ -29,8 +29,8 @@ from itertools import repeat, chain
 import functools as ft
 
 PROG_NAME = "VARV"
-PROG_VERSION = "0.1.1"
-PROG_DATE = "12/12/2014"
+PROG_VERSION = "0.1.2"
+PROG_DATE = "03/24/2015"
 PROG_AUTHORS = [
 	"Shweta Ramdas (sramdas@umich.edu)",
 	"Ryan Welch (welchr@umich.edu)"
