@@ -77,6 +77,13 @@ OUTPREFIX Output prefix for this run.
 PROCESS Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
 
 ## Additional Options
+EPACTSDIR Location of EPACTS if EPACTS is not on system path
+KINSHIPFILE Kinship file, if one has been generated previously
+ANNOTFILE Annotation for variants, one variant per line. 
+PVALUETHRESHOLD 
+GENELIST
+GROUPFILE
+SINGLEMARKERTEST
 
 
 ## Example
