@@ -13,7 +13,8 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Synopsis](#synopsis)
 * [Installation](#installation)
 * [Usage](#usage)
-* [Configuration](#configuration)
+* [Basic Configuration File](#configuration)
+* [Additional Options](#options)
 * [Example](#example)
 * [File formats](#file-formats)
 * [Output](#output)
@@ -63,9 +64,19 @@ Then you can invoke the program on a configuration file like so:
 varv your_config.cfg
 ```
 
-## Configuration
+## Configuration File
 
 The config file describes the input parameters and files to be submitted to VARV. The config file is in the METAL format, with each line containing a parameter and value. 
+The necessary parameters of the config file are:
+INPUTDIR  The input directory containing all the input files.
+VCFFILE The input vcf file (thie file does not have to be in the INPUTDIR). Only the file name has to be specified if file is in INPUTDIR (see additional options), otherwise the absolute path. 
+PEDFILE File containing phenotype information for samples (tab-delimited). Assumed to be in INPUTDIR.
+MODEL The model for analysis in the format 'phenotype ~ covariate2 + covariate2' Ex: phenotype ~ sex, or only phenotype (if no covariate is to be used.)
+TEST  Which test is to be used for group-wise test. Any of the options for EPACTS can be specified. If multiple tests are to be run, use multiple TEST lines (Ex: TEST  group=skat)
+OUTPREFIX Output prefix for this run.
+PROCESS Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
+
+## Additional Options
 
 
 ## Example
