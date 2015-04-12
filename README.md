@@ -14,7 +14,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Installation](#installation)
 * [Usage](#usage)
 * [Basic Configuration File](#configuration)
-* [Additional Options](#options)
+* [Additional Options](#additional-options)
 * [Example](#example)
 * [File formats](#file-formats)
 * [Output](#output)
