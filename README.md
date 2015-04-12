@@ -13,7 +13,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Synopsis](#synopsis)
 * [Installation](#installation)
 * [Usage](#usage)
-* [Basic Configuration File](#configuration)
+* [Basic Configuration File](#basic-configuration-file)
 * [Additional Options](#additional-options)
 * [Example](#example)
 * [File formats](#file-formats)
