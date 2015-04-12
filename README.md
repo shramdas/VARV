@@ -64,7 +64,7 @@ Then you can invoke the program on a configuration file like so:
 varv your_config.cfg
 ```
 
-## Configuration File
+## Basic Configuration File
 
 The config file describes the input parameters and files to be submitted to VARV. The config file is in the METAL format, with each line containing a parameter and value. 
 The necessary parameters of the config file are:
