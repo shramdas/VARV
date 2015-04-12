@@ -14,6 +14,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Installation](#installation)
 * [Usage](#usage)
 * [Configuration](#configuration)
+* [Example](#example)
 * [File formats](#file-formats)
 * [Output](#output)
 * [Plots](#plots)
@@ -23,7 +24,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 
 ## Synopsis
 
-VARV is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). 
+VARV is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). VARV is a command line tool that can be run from a Linux system.
 
 ## Installation
 
@@ -63,6 +64,11 @@ varv your_config.cfg
 ```
 
 ## Configuration
+
+The config file describes the input parameters and files to be submitted to VARV. The config file is in the METAL format, with each line containing a parameter and value. 
+
+
+## Example
 
 Below is an example of a config file, along with comments describing each of the options. You can remove the comments for brevity in your actual config file. 
 
