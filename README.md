@@ -68,6 +68,8 @@ varv your_config.cfg
 
 The config file describes the input parameters and files to be submitted to VARV. The config file is in the METAL format, with each line containing a parameter and value. 
 The necessary parameters of the config file are:
+
+```
 INPUTDIR  The input directory containing all the input files.
 
 VCFFILE The input vcf file (thie file does not have to be in the INPUTDIR). Only the file name has to be specified if file is in INPUTDIR (see additional options), otherwise the absolute path. 
@@ -81,7 +83,12 @@ OUTPREFIX Output prefix for this run.
 
 PROCESS Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
 
+```
+
 ## Additional Options
+
+```
+
 EPACTSDIR Location of EPACTS if EPACTS is not on system path
 
 KINSHIPFILE Kinship file, if one has been generated previously
@@ -96,6 +103,7 @@ GROUPFILE
 
 SINGLEMARKERTEST
 
+```
 
 ## Example
 
