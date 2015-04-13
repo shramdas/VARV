@@ -86,7 +86,7 @@ PROCESS Execute the set of instruction specified above this line (and after the 
 ```
 
 ## Additional Options
-
+Examples of usage of the options below are in the Examples section below. 
 ```
 
 EPACTSDIR Location of EPACTS if EPACTS is not on system path
@@ -95,13 +95,13 @@ KINSHIPFILE Kinship file, if one has been generated previously
 
 ANNOTFILE Annotation for variants, one variant per line. 
 
-PVALUETHRESHOLD 
+PVALUETHRESHOLD P-value threshold to determine the significance threshold for group-wise test (default=0.05)
 
-GENELIST
+GENELIST  If the user wants visualization only for a group of pre-determined genes (instead of genes significant in the group-wise test), these can be specified by GENELIST  
 
-GROUPFILE
+GROUPFILE Group file specifying the mapping from group names (genes) to sets of variants. Will b egenerated automatically if not provided
 
-SINGLEMARKERTEST
+SINGLEMARKERTEST  Which single marker test is to be used for those variants in genes with significant group-wise P-values.
 
 ```
 
