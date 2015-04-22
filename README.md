@@ -13,7 +13,9 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Synopsis](#synopsis)
 * [Installation](#installation)
 * [Usage](#usage)
-* [Configuration](#configuration)
+* [Basic Configuration File](#basic-configuration-file)
+* [Additional Options](#additional-options)
+* [Examples](#examples)
 * [File formats](#file-formats)
 * [Output](#output)
 * [Plots](#plots)
@@ -23,7 +25,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 
 ## Synopsis
 
-VARV is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). 
+VARV is a pipeline for automating many of the steps required for performing gene or group based tests with [EPACTS](http://genome.sph.umich.edu/wiki/EPACTS). VARV is a command line tool that can be run from a Linux system.
 
 ## Installation
 
@@ -62,11 +64,91 @@ Then you can invoke the program on a configuration file like so:
 varv your_config.cfg
 ```
 
-## Configuration
+## Basic Configuration File
+
+The config file describes the input parameters and files to be submitted to VARV. The config file is in the METAL format, with each line containing a parameter and value. 
+The config file is whitespace delimited, so the arguments to each option must not contain spaces. 
+The necessary parameters of the config file are:
+
+```
+INPUTDIR  The input directory containing all the input files.
+
+VCFFILE The input vcf file (thie file does not have to be in the INPUTDIR). Only the file name has to be specified if file is in INPUTDIR (see additional options), otherwise the absolute path. 
+
+PEDFILE File containing phenotype information for samples (tab-delimited). Assumed to be in INPUTDIR.
+
+MODEL The model for analysis in the format 'phenotype ~ covariate2 + covariate2' Ex: phenotype ~ sex, or only phenotype (if no covariate is to be used.)
+
+TEST  Which test is to be used for group-wise test. Any of the options for EPACTS can be specified. If multiple tests are to be run, use multiple TEST lines (Ex: TEST  group=skat)
+
+OUTPREFIX Output prefix for this run.
+
+PROCESS Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
+
+```
+
+## Additional Options
+Examples of usage of the options below are in the Examples section below. 
+```
+
+EPACTSDIR Location of EPACTS if EPACTS is not on system path
+
+KINSHIPFILE Kinship file, if one has been generated previously
+
+ANNOTFILE Annotation for variants, one variant per line. 
+
+ANNOTCOLUMNS	Which column name from the ANNOTFILE do we want displayed in the output plots? Not specifying this option would not annotate the variants.
+
+PVALUETHRESHOLD P-value threshold to determine the significance threshold for group-wise test (default=0.05)
+
+GENELIST  If the user wants to restrict analysis and visualization only for a group of pre-determined genes (instead of genes significant in the group-wise test), these can be specified using this option. Values are a comma-separated list of gene symbols. (Eg: GENELIST  PCSK9,DRD4,CREBBP)  
+
+GROUPFILE Group file specifying the mapping from group names (genes) to sets of variants. Will b egenerated automatically if not provided
+
+SINGLEMARKERTEST  Which single marker test is to be used for those variants in genes with significant group-wise P-values. This specifies the name of the test as EPACTS would expect it.
+
+SKATO If you specify a SKAT-based test, and you want to use the SKAT-O optimal test, use this option (Eg SKATO ON). 
+
+FILTERANNOT If you've provided an annotation file, but want to perform a filter on it, use this option. The filter is written with a simple python syntax. For more details, see: http://pandas.pydata.org/pandas-docs/version/0.15.1/indexing.html#indexing-query
+Eg: FILTERANNOT (vepGENE == 'LIPG') & (CAD > 0.4)
+
+FIELD Is there an alternative genotype field that EPACTS should use? 
+
+SEPCHR If VCF file is split up into chromosomes, specify this option. (Eg SEPCHR  ON)
+
+GENEMINMAC If you want to restrict genes to those with a minimum MAC. (Eg GENEMINMAC 5)
+
+MINVARS Only consider genes with > this number of variants (Eg MINVARS 2)
+
+EPACTSCMD Forcefully insert a string of command line arguments into the EPACTS command line when running group/gene tests 
+
+The following options are to place restrictions on min/max MAF and MAC to be used during both single variant and group based association tests. These are the current defaults: 
+MIN_MAC 1
+MIN_MAF 0
+MAX_MAF 1
+
+VERBOSE # Do you want to see more verbose output? This will spew every EPACTS command line out, along with some other (potentially) useful debug output. (Eg VERBOSE ON) 
+
+
+```
+
+## Examples
+
+Here is an example of a simple config file used to run two separate tests on the same input data. The input data is separated by chromosome.
+
+```
+INPUTDIR  /net/snowwhite/home/xlsim/gene_plots
+VCFFILE /net/snowwhite/home/teslo/ExomeChip/Gene-level_analysis/Tanya_dataset/omni_exchip_GoT2D_mean-genotype_10042_FINALchr1.vcf.gz
+SEPCHR  ON
+MODEL LDL ~ SEX + PC1
+TEST  group=skat
+TEST  group=VT
+OUTPREFIX /net/snowwhite/home/sramdas/output1/
+GENEMINMAC  5
+PROCESS
+```
 
 Below is an example of a config file, along with comments describing each of the options. You can remove the comments for brevity in your actual config file. 
-
-The config file is whitespace delimited, so the arguments to each option must not contain spaces. 
 
 ```
 # Location of tabix. Can just be "tabix" if it exists on your path. 
@@ -153,50 +235,6 @@ TEST group=mmskat
 PVALUETHRESHOLD RESET
 
 PROCESS
-
-```
-
-The following additional config file options exist: 
-
-```
-
-# If you've provided an annotation file, but want to perform a filter on it, use
-# this option. The filter is written with a simple python syntax. For more details, 
-# see: http://pandas.pydata.org/pandas-docs/version/0.15.1/indexing.html#indexing-query
-FILTERANNOT (vepGENE == 'LIPG') & (CAD > 0.4)
-
-# Is there an alternative genotype field that EPACTS should use? 
-FIELD EC
-
-# If VCF file is split up into chromosomes, specify this option. 
-SEPCHR ON
-
-# Only consider genes with a total MAC > this value. 
-GENEMINMAC 5
-
-# Only consider genes with > this number of variants. 
-MINVARS 2
-
-# Forcefully insert a string of command line arguments into the EPACTS command line
-# when running group/gene tests
-EPACTSCMD --some-opt 0.1
-
-# Place restrictions on min/max MAF and MAC to be used during both
-# single variant and group based association tests. 
-# These are the current defaults: 
-MIN_MAC 1
-MIN_MAF 0
-MAX_MAF 1
-
-# Do you want to see more verbose output? This will spew every EPACTS command line out, 
-# along with some other (potentially) useful debug output. 
-VERBOSE ON
-
-# REML file as previously generated by EPACTS. 
-# This should only be used with caution, and only when this *exact same* 
-# analysis has previously been executed. It is dependent on just about 
-# everything - genotypes, phenotype, covariates, kinship. 
-REMLFILE /net/snowwhite/home/xlsim/METSIM/FFA/gene-level/results_noT2D_adjmed/emmaxSKATO/PC_PTV+missense.01.grp_emmaxSKATO.reml
 
 ```
 
