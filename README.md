@@ -15,7 +15,7 @@ Questions should be sent to all three. Bugs/problems can be posted to the issues
 * [Usage](#usage)
 * [Basic Configuration File](#basic-configuration-file)
 * [Additional Options](#additional-options)
-* [Example](#example)
+* [Examples](#examples)
 * [File formats](#file-formats)
 * [Output](#output)
 * [Plots](#plots)
@@ -132,7 +132,21 @@ VERBOSE # Do you want to see more verbose output? This will spew every EPACTS co
 
 ```
 
-## Example
+## Examples
+
+Here is an example of a simple config file used to run two separate tests on the same input data. The input data is separated by chromosome.
+
+```
+INPUTDIR  /net/snowwhite/home/xlsim/gene_plots
+VCFFILE /net/snowwhite/home/teslo/ExomeChip/Gene-level_analysis/Tanya_dataset/omni_exchip_GoT2D_mean-genotype_10042_FINALchr1.vcf.gz
+SEPCHR  ON
+MODEL LDL ~ SEX + PC1
+TEST  group=skat
+TEST  group=VT
+OUTPREFIX /net/snowwhite/home/sramdas/output1/
+GENEMINMAC  5
+PROCESS
+```
 
 Below is an example of a config file, along with comments describing each of the options. You can remove the comments for brevity in your actual config file. 
 
