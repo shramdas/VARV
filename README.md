@@ -70,67 +70,61 @@ The config file describes the input parameters and files to be submitted to VARV
 The config file is whitespace delimited, so the arguments to each option must not contain spaces. 
 The necessary parameters of the config file are:
 
-```
-INPUTDIR  The input directory containing all the input files.
+* `INPUTDIR`  The input directory containing all the input files.
 
-VCFFILE The input vcf file (thie file does not have to be in the INPUTDIR). Only the file name has to be specified if file is in INPUTDIR (see additional options), otherwise the absolute path. 
+* `VCFFILE` The input vcf file (thie file does not have to be in the INPUTDIR). Only the file name has to be specified if file is in INPUTDIR (see additional options), otherwise the absolute path. 
 
-PEDFILE File containing phenotype information for samples (tab-delimited). Assumed to be in INPUTDIR.
+* `PEDFILE` File containing phenotype information for samples (tab-delimited). Assumed to be in INPUTDIR.
 
-MODEL The model for analysis in the format 'phenotype ~ covariate2 + covariate2' Ex: phenotype ~ sex, or only phenotype (if no covariate is to be used.)
+* `MODEL` The model for analysis in the format 'phenotype ~ covariate2 + covariate2' Ex: phenotype ~ sex, or only phenotype (if no covariate is to be used.)
 
-TEST  Which test is to be used for group-wise test. Any of the options for EPACTS can be specified. If multiple tests are to be run, use multiple TEST lines (Ex: TEST  group=skat)
+* `TEST`  Which test is to be used for group-wise test. Any of the options for EPACTS can be specified. If multiple tests are to be run, use multiple TEST lines (Ex: TEST  group=skat)
 
-OUTPREFIX Output prefix for this run.
+* `OUTPREFIX` Output prefix for this run.
 
-PROCESS Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
-
-```
+* `PROCESS` Execute the set of instruction specified above this line (and after the previous instance of PROCESS)
 
 ## Additional Options
+
 Examples of usage of the options below are in the Examples section below. 
-```
 
-EPACTSDIR Location of EPACTS if EPACTS is not on system path
+* `EPACTSDIR` Location of EPACTS if EPACTS is not on system path
 
-KINSHIPFILE Kinship file, if one has been generated previously
+* `KINSHIPFILE` Kinship file, if one has been generated previously
 
-ANNOTFILE Annotation for variants, one variant per line. 
+* `ANNOTFILE` Annotation for variants, one variant per line. 
 
-ANNOTCOLUMNS	Which column name from the ANNOTFILE do we want displayed in the output plots? Not specifying this option would not annotate the variants.
+* `ANNOTCOLUMNS`	Which column name from the ANNOTFILE do we want displayed in the output plots? Not specifying this option would not annotate the variants.
 
-PVALUETHRESHOLD P-value threshold to determine the significance threshold for group-wise test (default=0.05)
+* `PVALUETHRESHOLD` P-value threshold to determine the significance threshold for group-wise test (default=0.05)
 
-GENELIST  If the user wants to restrict analysis and visualization only for a group of pre-determined genes (instead of genes significant in the group-wise test), these can be specified using this option. Values are a comma-separated list of gene symbols. (Eg: GENELIST  PCSK9,DRD4,CREBBP)  
+* `GENELIST` If the user wants to restrict analysis and visualization only for a group of pre-determined genes (instead of genes significant in the group-wise test), these can be specified using this option. Values are a comma-separated list of gene symbols. (Eg: GENELIST  PCSK9,DRD4,CREBBP)  
 
-GROUPFILE Group file specifying the mapping from group names (genes) to sets of variants. Will b egenerated automatically if not provided
+* `GROUPFILE` Group file specifying the mapping from group names (genes) to sets of variants. Will b egenerated automatically if not provided
 
-SINGLEMARKERTEST  Which single marker test is to be used for those variants in genes with significant group-wise P-values. This specifies the name of the test as EPACTS would expect it.
+* `SINGLEMARKERTEST`  Which single marker test is to be used for those variants in genes with significant group-wise P-values. This specifies the name of the test as EPACTS would expect it.
 
-SKATO If you specify a SKAT-based test, and you want to use the SKAT-O optimal test, use this option (Eg SKATO ON). 
+* `SKATO` If you specify a SKAT-based test, and you want to use the SKAT-O optimal test, use this option (Eg SKATO ON). 
 
-FILTERANNOT If you've provided an annotation file, but want to perform a filter on it, use this option. The filter is written with a simple python syntax. For more details, see: http://pandas.pydata.org/pandas-docs/version/0.15.1/indexing.html#indexing-query
+* `FILTERANNOT` If you've provided an annotation file, but want to perform a filter on it, use this option. The filter is written with a simple python syntax. For more details, see: http://pandas.pydata.org/pandas-docs/version/0.15.1/indexing.html#indexing-query
 Eg: FILTERANNOT (vepGENE == 'LIPG') & (CAD > 0.4)
 
-FIELD Is there an alternative genotype field that EPACTS should use? 
+* `FIELD` Is there an alternative genotype field that EPACTS should use? 
 
-SEPCHR If VCF file is split up into chromosomes, specify this option. (Eg SEPCHR  ON)
+* `SEPCHR` If VCF file is split up into chromosomes, specify this option. (Eg SEPCHR  ON)
 
-GENEMINMAC If you want to restrict genes to those with a minimum MAC. (Eg GENEMINMAC 5)
+* `GENEMINMAC` If you want to restrict genes to those with a minimum MAC. (Eg GENEMINMAC 5)
 
-MINVARS Only consider genes with > this number of variants (Eg MINVARS 2)
+* `MINVARS` Only consider genes with > this number of variants (Eg MINVARS 2)
 
-EPACTSCMD Forcefully insert a string of command line arguments into the EPACTS command line when running group/gene tests 
-
+* `EPACTSCMD` Forcefully insert a string of command line arguments into the EPACTS command line when running group/gene tests 
 The following options are to place restrictions on min/max MAF and MAC to be used during both single variant and group based association tests. These are the current defaults: 
-MIN_MAC 1
-MIN_MAF 0
-MAX_MAF 1
 
-VERBOSE # Do you want to see more verbose output? This will spew every EPACTS command line out, along with some other (potentially) useful debug output. (Eg VERBOSE ON) 
+  * `MIN_MAC` 1
+  * `MIN_MAF` 0
+  * `MAX_MAF` 1
 
-
-```
+* `VERBOSE` Do you want to see more verbose output? This will spew every EPACTS command line out, along with some other (potentially) useful debug output. (Eg VERBOSE ON) 
 
 ## Examples
 
