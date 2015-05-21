@@ -757,7 +757,7 @@ def main(arg_string=None):
 
 		# Do we need to drop samples from the VCF as well?
 		vcf_samples = set(vcf_get_header(vcf_for_tests)[9:]).difference(keep_samples)
-		keep_samples = keep_samples[keep_samples.isin(vcf_allsamples)]
+		keep_samples = keep_samples[keep_samples.isin(vcf_samples)]
 		keep_samples = pandas.Series(keep_samples)
 		
 		if len(vcf_samples) > 0:
