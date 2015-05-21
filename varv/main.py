@@ -1155,6 +1155,38 @@ def main(arg_string=None):
 		for_plot_variants = pandas.merge(for_plot_variants,for_plot_pheno,on="IND",how="left")
 		df_to_js(for_plot_variants,"variants",os.path.join(html_dir,"plot_variants.js"),float_format="%0.3g",write_tab=True)
 
+		#if trait is binary, add information about number of cases/controls each variant is found in:
+		if len(for_plot_variants['TRAIT'].unique()) <=2 :
+			allv = gene_final_filtered['VARIANT'].unique()
+			hets_controls = np.array([])
+			hets_cases = np.array([])
+			homs_controls = np.array([])
+			homs_cases = np.array([])
+
+			for v in allv:
+				c = for_plot_variants[for_plot_variants['VARIANT'] == v]
+				n1 = len(c[(c['GENOTYPE'] == '0/1') & (c['TRAIT'] == 1)])
+				n2 = len(c[(c['GENOTYPE'] == '0/1') & (c['TRAIT'] == 2)])
+				n3 = len(c[(c['GENOTYPE'] == '1/1') & (c['TRAIT'] == 1)])
+				n4 = len(c[(c['GENOTYPE'] == '1/1') & (c['TRAIT'] == 2)])
+				hets_controls = np.append(hets_controls, n1)
+				hets_cases = np.append(hets_cases,n2)
+				homs_controls = np.append(homs_controls,n3)
+				homs_cases = np.append(homs_cases,n4)
+			
+			hets_controls = pandas.Series(hets_controls, index=allv,dtype='int64')
+			hets_cases = pandas.Series(hets_cases, index=allv,dtype='int64')
+			homs_cases = pandas.Series(homs_cases, index=allv,dtype='int64')
+			homs_controls = pandas.Series(homs_controls, index=allv,dtype='int64')
+
+			allnums = pandas.concat([hets_cases, homs_cases, hets_controls, homs_controls],axis=1)
+			allnums.to_csv("allnums.txt",header=True)
+			allnums['VARIANT'] = allnums.index
+			allnums.columns = ['HETS_CASES','HOMS_CASES','HETS_CONTROLS','HOMS_CONTROLS','VARIANT']
+			plot_genes_binary =  pandas.merge(gene_final_filtered, allnums, left_on='VARIANT',right_on='VARIANT',how='inner')
+			df_to_js(plot_genes_binary,"genes",os.path.join(html_dir,"plot_genes_binary.js"),float_format="%0.3g",write_tab=True)
+
+
 		# Write out the model formula for the plotting HTML code.
 		with open(os.path.join(html_dir,"plot_info.js"),"w") as out:
 			print >> out, 'model_formula = "%s"' % aopts["MODEL"]
