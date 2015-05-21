@@ -486,6 +486,7 @@ def main(arg_string=None):
 
 		pedfile.iloc[:,1].to_csv(outprefix + ".samples_to_keep.txt", sep="\t",index=False, na_rep='NA')
 		keep_samples = pedfile.iloc[:,1]
+		
 		if len(pedcolumns) > 0:
 			if len(covariates) > 0:
 				for i in range(0,len(covariates)):
@@ -699,13 +700,16 @@ def main(arg_string=None):
 			)
 			logger.debug(tabixcommand)
 			run_bash_vlevel(tabixcommand)
-
+	
 			#sort vcf
-			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep  "#" > temp')
-			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep -v  "#" | sort -g -k1 -k2 >> temp')
-			run_bash_vlevel('mv temp ' + gene_vcf)
+			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep  "#" > ' + outprefix + 'temp')
+			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep -v  "#" | sort -g -k1 -k2 >> ' + outprefix + 'temp')
+			
+			run_bash_vlevel('mv ' + outprefix + 'temp ' + gene_vcf)
 			run_bash_vlevel('rm ' + gene_vcf + '.gz')
-			run_bash_vlevel('bgzip ' + gene_vcf)
+
+			
+			run_bash_vlevel('bgzip -c ' + gene_vcf + " >| " + gene_vcf + ".gz")
 
 			tabixcommand = "%s -p vcf -f %s" % (tabix,gene_vcf + ".gz")
 			logger.debug(tabixcommand)
@@ -754,9 +758,10 @@ def main(arg_string=None):
 				pass
 
 		vcf_for_tests = gene_vcf + ".gz"
-
+		
 		# Do we need to drop samples from the VCF as well?
-		vcf_samples = set(vcf_get_header(vcf_for_tests)[9:]).difference(keep_samples)
+		vcf_samples = set(vcf_get_header(vcf_for_tests)[9:])
+		
 		keep_samples = keep_samples[keep_samples.isin(vcf_samples)]
 		keep_samples = pandas.Series(keep_samples)
 		
