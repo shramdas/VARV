@@ -684,6 +684,8 @@ def main(arg_string=None):
 		gene_vcf = outprefix + '.genes_to_keep.vcf'
 
 		tobed.to_csv(gene_bed,sep="\t",index=False,header=False)
+		run_bash_vlevel('sort -g -k1 -k2 ' + gene_bed + ' > ' + gene_bed + '.sorted')
+		run_bash_vlevel('cp ' + gene_bed + '.sorted  ' + gene_bed)
 
 		logger.info("Extracting markers from original VCFs needed for single/group tests...")
 
@@ -697,6 +699,13 @@ def main(arg_string=None):
 			)
 			logger.debug(tabixcommand)
 			run_bash_vlevel(tabixcommand)
+
+			#sort vcf
+			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep  "#" > temp')
+			run_bash_vlevel("zcat " + gene_vcf + '.gz | grep -v  "#" | sort -g -k1 -k2 >> temp')
+			run_bash_vlevel('mv temp ' + gene_vcf)
+			run_bash_vlevel('rm ' + gene_vcf + '.gz')
+			run_bash_vlevel('bgzip ' + gene_vcf)
 
 			tabixcommand = "%s -p vcf -f %s" % (tabix,gene_vcf + ".gz")
 			logger.debug(tabixcommand)
@@ -748,6 +757,9 @@ def main(arg_string=None):
 
 		# Do we need to drop samples from the VCF as well?
 		vcf_samples = set(vcf_get_header(vcf_for_tests)[9:]).difference(keep_samples)
+		keep_samples = keep_samples[keep_samples.isin(vcf_allsamples)]
+		keep_samples = pandas.Series(keep_samples)
+		
 		if len(vcf_samples) > 0:
 			logger.info("Reducing samples in VCF to match PED file...")
 
