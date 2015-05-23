@@ -248,9 +248,6 @@ table th {
       .insert("td",":first-child")
       .style("border-bottom","1px solid black")
       .text(function(d){return d})
-
-    <!-- The nbsp is for Firefox compatibility -->
-    d3.select("#header").insert("td",":first-child").style("border-bottom","1px solid black").html("&nbsp;");
     
     var tip = d3.tip()
       .attr('class', 'd3tip')
@@ -269,19 +266,6 @@ table th {
       var next_gene_same = tsv_genes[index + 1] !== undefined && row.GENE == tsv_genes[index + 1].GENE
       var prev_gene_same = tsv_genes[index - 1] !== undefined && row.GENE == tsv_genes[index - 1].GENE
       
-      if (!next_gene_same) {
-        var row_svg = trow.append("td").classed("first-gene",true).append("svg");
-      } else {
-        var row_svg = trow.append("td").classed("same-gene",true).append("svg");
-      }
-      
-      row_svg = row_svg.attr("width", width + margin.left + margin.right)
-        .attr("height", 20)
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")")
-
-      row_svg.call(tip)
-        
       var variant_data = tsv_vars.filter(function(d) { return d.VARIANT == row.VARIANT });
       
       <!-- What is the mean trait value for this variant?  -->
@@ -344,12 +328,8 @@ table th {
     </td>
   </tr>
   <tr>
-    <td>    </td>
+    <td></td>
     <td colspan=99 style="vertical-align: top;">
-      <div style="float: right; top: 5px; right: 5px;">
-        <table id="legend">
-        </table>
-      </div>
     </td>
   </tr>
   

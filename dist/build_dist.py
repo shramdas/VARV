@@ -3,7 +3,7 @@ import os
 import os.path as path
 import sys
 
-# Move up to the runepacts root.
+# Move up to the varv root.
 this_dir = path.dirname(path.realpath(sys.argv[0]))
 root_dir = path.join(this_dir,"..")
 
@@ -11,9 +11,9 @@ print "Changing into: %s" % root_dir
 os.chdir(root_dir)
 sys.path.append(root_dir)
 
-from runepacts.main import PROG_VERSION
+from varv.main import PROG_VERSION
 
-tarfile = "runepacts_%s.tgz" % PROG_VERSION;
+tarfile = "varv_%s.tgz" % PROG_VERSION;
 
 if os.path.exists(tarfile):
   print "Removing existing tar.."
@@ -21,11 +21,11 @@ if os.path.exists(tarfile):
 
 command = "tar zcfh %s" % tarfile;
 paths = """
-bin/runepacts
+bin/varv
 bin/setup.py
-bin/virtualenv-runepacts.py
+bin/virtualenv-varv.py
 bin/virtualenv_support
-runepacts
+varv
 README.md
 """.split();
 
@@ -34,8 +34,8 @@ args = [];
 print "Options enabled: "
 
 if 1:
-  print ".. adding runepacts/ to beginning of each file path";
-  args.append("--xform 's|^|runepacts/|'");
+  print ".. adding varv/ to beginning of each file path";
+  args.append("--xform 's|^|varv/|'");
 
 if 1:
   print ".. removing git";
