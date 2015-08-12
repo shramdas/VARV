@@ -773,7 +773,7 @@ def main(arg_string=None):
 
 		# Do we need a kinship matrix?
 		grouptests = []
-		for i in aopts['TESTS']:
+		for i in aopts['TEST']:
 			grouptests.append(i.replace('group=','').strip())
 		
 		grouptests = set(grouptests)
