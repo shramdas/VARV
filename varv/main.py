@@ -772,7 +772,7 @@ def main(arg_string=None):
 			vcf_filter_samples(vcf_for_tests,keep_samples,tabix)
 
 		# Do we need a kinship matrix?
-		need_kinship_group = sets_overlap(tests,KINSHIP_TESTS)
+		need_kinship_group = sets_overlap(tests.replace('group=',''),KINSHIP_TESTS)
 		need_kinship_single = sets_overlap([aopts["SINGLEMARKERTEST"]],KINSHIP_TESTS)
 		kinship_needed = need_kinship_group | need_kinship_single
 
