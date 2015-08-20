@@ -4,6 +4,7 @@ Authors:
 
 * Shweta Ramdas (sramdas@umich.edu)
 * Ryan Welch (welchr@umich.edu)
+* Christian Fuchsberger (cfuchsb@umich.edu)
 * Tanya Teslovich (teslo@umich.edu) 
 
 Questions should be sent to all three. Bugs/problems can be posted to the issues section of this repository. 
